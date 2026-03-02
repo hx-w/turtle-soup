@@ -1,10 +1,10 @@
 import { prisma } from '../lib/prisma';
-import { EventType } from '@prisma/client';
+import { EventType, Prisma } from '@prisma/client';
 
 interface EventData {
   userId?: string;
   questionId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 async function recordEvent(channelId: string, type: EventType, data: EventData = {}): Promise<void> {
@@ -13,9 +13,9 @@ async function recordEvent(channelId: string, type: EventType, data: EventData =
       data: {
         channelId,
         type,
-        userId: data.userId || null,
-        questionId: data.questionId || null,
-        metadata: data.metadata || null,
+        userId: data.userId ?? null,
+        questionId: data.questionId ?? null,
+        metadata: data.metadata ?? Prisma.JsonNull,
       },
     });
   } catch (error) {
