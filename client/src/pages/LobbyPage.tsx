@@ -42,6 +42,21 @@ export default function LobbyPage() {
     loadChannels();
   }, [loadChannels]);
 
+  // Re-fetch when page becomes visible (e.g. returning from a channel)
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        loadChannels();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', loadChannels);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', loadChannels);
+    };
+  }, [loadChannels]);
+
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {

@@ -13,9 +13,9 @@ type Request = ExpressRequest<Record<string, string>>;
 const router = Router();
 
 const createSchema = z.object({
-  title: z.string().min(2).max(50),
-  surface: z.string().min(10).max(2000),
-  truth: z.string().min(10).max(5000),
+  title: z.string().min(1).max(50),
+  surface: z.string().min(1).max(2000),
+  truth: z.string().min(1).max(5000),
   maxQuestions: z.number().int().min(0).default(0),
   difficulty: z.enum(['easy', 'medium', 'hard', 'hell']).default('medium'),
   tags: z.array(z.string()).default([]),
@@ -31,6 +31,10 @@ const ratingSchema = z.object({
 });
 
 const questionSchema = z.object({
+  content: z.string().min(1).max(500),
+});
+
+const chatSchema = z.object({
   content: z.string().min(1).max(500),
 });
 
@@ -485,6 +489,76 @@ router.get('/:id/ratings', async (req: Request, res: Response) => {
     res.json({ ratings, average: Math.round(avg * 10) / 10, count: ratings.length });
   } catch (err) {
     logger.error('Ratings fetch failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Get chat messages
+router.get('/:id/chat', authRequired, async (req: Request, res: Response) => {
+  try {
+    const channelId = req.params.id;
+    const { before, limit = '50' } = req.query;
+    const take = Math.min(Number(limit), 100);
+
+    const where: Prisma.ChatMessageWhereInput = { channelId };
+    if (before) {
+      where.createdAt = { lt: new Date(String(before)) };
+    }
+
+    const messages = await prisma.chatMessage.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: take + 1,
+      include: {
+        user: { select: { id: true, nickname: true, avatarSeed: true } },
+      },
+    });
+
+    const hasMore = messages.length > take;
+    if (hasMore) messages.pop();
+
+    res.json({ messages: messages.reverse(), hasMore });
+  } catch (err) {
+    logger.error('Chat messages fetch failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Send chat message
+router.post('/:id/chat', authRequired, validate(chatSchema), async (req: Request, res: Response) => {
+  try {
+    const { content } = req.body;
+    const channelId = req.params.id;
+    const userId = req.user!.userId;
+
+    const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+    if (!channel || channel.status !== 'active') {
+      res.status(400).json({ error: 'Channel 不可用' });
+      return;
+    }
+
+    const member = await prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+    });
+    if (!member) {
+      res.status(403).json({ error: '你不是该频道的成员' });
+      return;
+    }
+    if (member.role === 'host') {
+      res.status(403).json({ error: '主持人不能在讨论区发言' });
+      return;
+    }
+
+    const message = await prisma.chatMessage.create({
+      data: { channelId, userId, content },
+      include: {
+        user: { select: { id: true, nickname: true, avatarSeed: true } },
+      },
+    });
+
+    res.json(message);
+  } catch (err) {
+    logger.error('Chat message send failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });
   }
 });

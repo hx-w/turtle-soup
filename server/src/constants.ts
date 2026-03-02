@@ -16,4 +16,5 @@ export const SocketEvents = {
   QUESTION_ANSWERED: 'question:answered',
   QUESTION_WITHDRAWN: 'question:withdrawn',
   ROLE_CHANGED: 'role:changed',
+  CHAT_NEW: 'chat:new',
 } as const;

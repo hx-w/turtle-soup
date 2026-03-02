@@ -1,0 +1,91 @@
+import { useState, useCallback, useRef } from 'react';
+import { api } from '../lib/api';
+import { emitChatNew } from '../lib/socket';
+import type { ChatMessage, ChatListResponse } from '../types';
+
+export function useDiscussion(channelId: string | undefined) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const initialLoaded = useRef(false);
+
+  const fetchMessages = useCallback(
+    async (before?: string) => {
+      if (!channelId || loading) return;
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (before) params.set('before', before);
+        params.set('limit', '50');
+        const data = await api.get<ChatListResponse>(
+          `/channels/${channelId}/chat?${params}`,
+        );
+        setHasMore(data.hasMore);
+        if (before) {
+          // Prepend older messages
+          setMessages((prev) => [...data.messages, ...prev]);
+        } else {
+          setMessages(data.messages);
+        }
+        initialLoaded.current = true;
+      } catch {
+        // Non-critical
+      } finally {
+        setLoading(false);
+      }
+    },
+    [channelId, loading],
+  );
+
+  const loadMore = useCallback(() => {
+    if (messages.length === 0 || !hasMore) return;
+    fetchMessages(messages[0].createdAt);
+  }, [messages, hasMore, fetchMessages]);
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!channelId) return;
+      const msg = await api.post<ChatMessage>(
+        `/channels/${channelId}/chat`,
+        { content: content.trim() },
+      );
+      emitChatNew({ channelId, message: msg });
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+      return msg;
+    },
+    [channelId],
+  );
+
+  const addMessage = useCallback((msg: ChatMessage) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+  }, []);
+
+  const incrementUnread = useCallback(() => {
+    setUnreadCount((c) => c + 1);
+  }, []);
+
+  const resetUnread = useCallback(() => {
+    setUnreadCount(0);
+  }, []);
+
+  return {
+    messages,
+    hasMore,
+    loading,
+    unreadCount,
+    initialLoaded: initialLoaded.current,
+    fetchMessages,
+    loadMore,
+    sendMessage,
+    addMessage,
+    incrementUnread,
+    resetUnread,
+  };
+}

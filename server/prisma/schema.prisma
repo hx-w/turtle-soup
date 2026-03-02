@@ -48,6 +48,7 @@ model User {
   answers         Question[]      @relation("answerer")
   ratings         Rating[]
   createdChannels Channel[]
+  chatMessages    ChatMessage[]
 }
 
 model InviteCode {
@@ -74,6 +75,7 @@ model Channel {
   members      ChannelMember[]
   questions    Question[]
   ratings      Rating[]
+  chatMessages ChatMessage[]
 
   @@index([status])
   @@index([createdAt])
@@ -120,4 +122,16 @@ model Rating {
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([channelId, userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  channelId String
+  userId    String
+  content   String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+  channel   Channel  @relation(fields: [channelId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([channelId, createdAt])
 }

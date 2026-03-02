@@ -102,3 +102,7 @@ export function emitRoleChanged(data: {
 export function emitChannelEnded(data: { channelId: string }) {
   socket.emit(SocketEvents.CHANNEL_ENDED, data);
 }
+
+export function emitChatNew(data: { channelId: string; message: unknown }) {
+  socket.emit(SocketEvents.CHAT_NEW, data);
+}

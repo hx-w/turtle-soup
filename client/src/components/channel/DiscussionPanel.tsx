@@ -1,0 +1,173 @@
+import { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { MessageSquare, Loader2, ChevronUp } from 'lucide-react';
+import type { ChatMessage } from '../../types';
+
+interface DiscussionPanelProps {
+  messages: ChatMessage[];
+  currentUserId?: string;
+  hasMore: boolean;
+  loading: boolean;
+  onLoadMore: () => void;
+}
+
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** Check whether two messages should be visually grouped (same sender, <2min apart). */
+function shouldGroup(prev: ChatMessage | undefined, curr: ChatMessage): boolean {
+  if (!prev) return false;
+  if (prev.userId !== curr.userId) return false;
+  const gap = new Date(curr.createdAt).getTime() - new Date(prev.createdAt).getTime();
+  return gap < 2 * 60 * 1000; // 2 minutes
+}
+
+function ChatBubble({
+  message,
+  isOwn,
+  grouped,
+}: {
+  message: ChatMessage;
+  isOwn: boolean;
+  grouped: boolean;
+}) {
+  const avatarUrl = `https://api.dicebear.com/7.x/thumbs/svg?seed=${message.user.avatarSeed}`;
+
+  if (isOwn) {
+    return (
+      <div className={`flex justify-end px-4 ${grouped ? 'mt-0.5' : 'mt-3'}`}>
+        <div className="max-w-[75%] flex flex-col items-end">
+          {!grouped && (
+            <span className="text-xs text-text-muted mb-1 mr-1">
+              {formatTime(message.createdAt)}
+            </span>
+          )}
+          <div className="bg-primary/20 border border-primary/20 rounded-2xl rounded-tr-md px-3.5 py-2">
+            <p className="text-sm text-text leading-relaxed break-words whitespace-pre-wrap">
+              {message.content}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex gap-2.5 px-4 ${grouped ? 'mt-0.5 pl-[52px]' : 'mt-3'}`}>
+      {!grouped && (
+        <img
+          src={avatarUrl}
+          alt={message.user.nickname}
+          className="w-8 h-8 rounded-full bg-surface flex-shrink-0 mt-0.5"
+        />
+      )}
+      <div className="max-w-[75%] flex flex-col">
+        {!grouped && (
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-medium text-text-muted">
+              {message.user.nickname}
+            </span>
+            <span className="text-xs text-text-muted/60">
+              {formatTime(message.createdAt)}
+            </span>
+          </div>
+        )}
+        <div className="bg-card/70 border border-border rounded-2xl rounded-tl-md px-3.5 py-2">
+          <p className="text-sm text-text leading-relaxed break-words whitespace-pre-wrap">
+            {message.content}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DiscussionPanel({
+  messages,
+  currentUserId,
+  hasMore,
+  loading,
+  onLoadMore,
+}: DiscussionPanelProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(messages.length);
+
+  // Auto-scroll on new messages (only when already near bottom)
+  useEffect(() => {
+    if (messages.length > prevLengthRef.current) {
+      const el = scrollRef.current;
+      if (el) {
+        const isNearBottom =
+          el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+        if (isNearBottom) {
+          bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+    prevLengthRef.current = messages.length;
+  }, [messages.length]);
+
+  // Scroll to bottom on first render
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView();
+  }, []);
+
+  if (messages.length === 0 && !loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-text-muted py-16">
+        <MessageSquare className="w-12 h-12 mb-3 opacity-30" />
+        <p className="text-sm">还没有讨论</p>
+        <p className="text-xs mt-1">和其他玩家一起整理思路吧</p>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-none pb-2">
+      {/* Load more */}
+      {hasMore && (
+        <div className="flex justify-center py-3">
+          <button
+            onClick={onLoadMore}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-text-muted
+                       hover:text-text bg-surface/60 hover:bg-surface border border-border
+                       rounded-full transition-colors duration-200 cursor-pointer
+                       disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <ChevronUp className="w-3.5 h-3.5" />
+            )}
+            加载更多
+          </button>
+        </div>
+      )}
+
+      {/* Messages */}
+      {messages.map((msg, i) => {
+        const isOwn = msg.userId === currentUserId;
+        const grouped = shouldGroup(messages[i - 1], msg);
+        return (
+          <motion.div
+            key={msg.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ChatBubble message={msg} isOwn={isOwn} grouped={grouped} />
+          </motion.div>
+        );
+      })}
+
+      <div ref={bottomRef} />
+    </div>
+  );
+}

@@ -105,6 +105,10 @@ export function setupSocket(httpServer: HttpServer) {
       io.to(data.channelId).emit(SocketEvents.CHANNEL_ENDED, data);
     });
 
+    socket.on(SocketEvents.CHAT_NEW, (data) => {
+      io.to(data.channelId).emit(SocketEvents.CHAT_NEW, data);
+    });
+
     socket.on('disconnect', () => {
       // Remove from all channels
       for (const [channelId, users] of onlineUsers) {

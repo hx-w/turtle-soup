@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion';
-import { Undo2 } from 'lucide-react';
+import { Undo2, Check, X, Minus } from 'lucide-react';
 import AnswerStamp from './AnswerStamp';
 import type { Question } from '../types';
 
 interface QuestionBubbleProps {
   question: Question;
   currentUserId?: string;
+  isHost?: boolean;
   onWithdraw?: (questionId: string) => void;
+  onAnswer?: (questionId: string, answer: 'yes' | 'no' | 'irrelevant') => void;
 }
 
 function formatTime(dateStr: string): string {
@@ -20,7 +22,9 @@ function formatTime(dateStr: string): string {
 export default function QuestionBubble({
   question,
   currentUserId,
+  isHost,
   onWithdraw,
+  onAnswer,
 }: QuestionBubbleProps) {
   const isOwn = currentUserId === question.asker.id;
   const isPending = question.status === 'pending';
@@ -32,9 +36,7 @@ export default function QuestionBubble({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className={`flex gap-3 px-4 py-3 ${
-        isPending ? 'border border-primary/30 animate-pulse rounded-2xl' : ''
-      }`}
+      className="flex gap-3 px-4 py-3"
     >
       {/* Avatar */}
       <img
@@ -62,13 +64,45 @@ export default function QuestionBubble({
           </p>
         </div>
 
-        {/* Answer stamp or withdraw */}
+        {/* Answer stamp / host answer buttons / withdraw */}
         <div className="mt-2 flex items-center gap-2">
           {isAnswered && question.answer && (
             <AnswerStamp answer={question.answer} />
           )}
 
-          {isPending && isOwn && onWithdraw && (
+          {isPending && isHost && onAnswer && (
+            <>
+              <button
+                onClick={() => onAnswer(question.id, 'yes')}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
+                           bg-yes/15 text-yes border border-yes/30 hover:bg-yes/25
+                           transition-colors duration-200 cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5" />
+                是
+              </button>
+              <button
+                onClick={() => onAnswer(question.id, 'no')}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
+                           bg-no/15 text-no border border-no/30 hover:bg-no/25
+                           transition-colors duration-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                否
+              </button>
+              <button
+                onClick={() => onAnswer(question.id, 'irrelevant')}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
+                           bg-irrelevant/15 text-irrelevant border border-irrelevant/30
+                           hover:bg-irrelevant/25 transition-colors duration-200 cursor-pointer"
+              >
+                <Minus className="w-3.5 h-3.5" />
+                无关
+              </button>
+            </>
+          )}
+
+          {isPending && isOwn && !isHost && onWithdraw && (
             <button
               onClick={() => onWithdraw(question.id)}
               className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs text-text-muted
@@ -80,7 +114,7 @@ export default function QuestionBubble({
             </button>
           )}
 
-          {isPending && !isOwn && (
+          {isPending && !isOwn && !isHost && (
             <span className="text-xs text-text-muted">等待回答中...</span>
           )}
         </div>

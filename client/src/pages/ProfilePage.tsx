@@ -127,10 +127,10 @@ export default function ProfilePage() {
   const channels = activeTab === 'player' ? playerChannels : hostChannels;
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="-mt-2 min-h-screen bg-bg">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-xl border-b border-border px-4 py-3">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-14 z-20 glass-nav px-4 py-3">
+        <div className="flex items-center gap-3 max-w-5xl mx-auto">
           <button
             onClick={() => navigate(-1)}
             className="p-1.5 rounded-lg hover:bg-card text-text-muted

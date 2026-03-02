@@ -6,11 +6,15 @@ import { toast } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import { useChannelData } from '../hooks/useChannelData';
 import { useChannelSocket } from '../hooks/useChannelSocket';
+import { useDiscussion } from '../hooks/useDiscussion';
 import ChannelHeader from '../components/channel/ChannelHeader';
 import SurfacePanel from '../components/channel/SurfacePanel';
 import ActionButtons from '../components/channel/ActionButtons';
+import ChannelTabs from '../components/channel/ChannelTabs';
+import type { TabKey } from '../components/channel/ChannelTabs';
 import PlayerInputPanel from '../components/channel/PlayerInputPanel';
-import HostAnswerPanel from '../components/channel/HostAnswerPanel';
+import DiscussionPanel from '../components/channel/DiscussionPanel';
+import ChatInput from '../components/channel/ChatInput';
 import ConfirmDialog from '../components/ConfirmDialog';
 import QuestionBubble from '../components/QuestionBubble';
 import TruthReveal from '../components/TruthReveal';
@@ -32,7 +36,10 @@ export default function ChannelPage() {
     handleSocketRoleChanged, handleSocketChannelEnded, updateOnlineUsers,
   } = useChannelData(channelId, user);
 
+  const discussion = useDiscussion(channelId);
+
   // UI state
+  const [activeTab, setActiveTab] = useState<TabKey>('qa');
   const [surfaceCollapsed, setSurfaceCollapsed] = useState(false);
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [showTruth, setShowTruth] = useState(false);
@@ -52,7 +59,6 @@ export default function ChannelPage() {
   const hasPending = questions.some(
     (q) => q.asker.id === user?.id && q.status === 'pending',
   );
-  const pendingQuestions = questions.filter((q) => q.status === 'pending');
   const isActive = channel?.status === 'active' && !channelEnded;
 
   // Scroll to bottom on new questions
@@ -66,6 +72,20 @@ export default function ChannelPage() {
     scrollToBottom();
   }, [questions, scrollToBottom]);
 
+  // Load discussion messages when tab is first opened
+  const handleTabChange = useCallback(
+    (tab: TabKey) => {
+      setActiveTab(tab);
+      if (tab === 'discussion') {
+        discussion.resetUnread();
+        if (!discussion.initialLoaded) {
+          discussion.fetchMessages();
+        }
+      }
+    },
+    [discussion],
+  );
+
   // Socket events
   useChannelSocket(channelId, user?.id, {
     onNewQuestion: addQuestion,
@@ -77,6 +97,14 @@ export default function ChannelPage() {
       if (truth) setShowTruth(true);
     },
     onOnlineUsersUpdate: updateOnlineUsers,
+    onNewChatMessage: (msg) => {
+      // Don't add own messages (already added optimistically)
+      if (msg.userId === user?.id) return;
+      discussion.addMessage(msg);
+      if (activeTab !== 'discussion') {
+        discussion.incrementUnread();
+      }
+    },
   });
 
   // Actions
@@ -175,45 +203,74 @@ export default function ChannelPage() {
         }}
       />
 
-      {/* Question Timeline */}
-      <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto py-3 space-y-1 overscroll-none">
-        {questions.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-text-muted">
-            <HelpCircle className="w-12 h-12 mb-3 opacity-30" />
-            <p className="text-sm">还没有人提问</p>
-            <p className="text-xs mt-1">成为第一个提问者吧!</p>
+      {/* Tabs */}
+      <ChannelTabs
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        answeredCount={answeredCount}
+        unreadCount={discussion.unreadCount}
+      />
+
+      {/* Tab Content */}
+      {activeTab === 'qa' ? (
+        <>
+          {/* Question Timeline */}
+          <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto py-3 space-y-1 overscroll-none">
+            {questions.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-text-muted">
+                <HelpCircle className="w-12 h-12 mb-3 opacity-30" />
+                <p className="text-sm">还没有人提问</p>
+                <p className="text-xs mt-1">成为第一个提问者吧!</p>
+              </div>
+            )}
+            {questions
+              .filter((q) => q.status !== 'withdrawn')
+              .map((q) => (
+                <QuestionBubble
+                  key={q.id}
+                  question={q}
+                  currentUserId={user?.id}
+                  isHost={myRole === 'host'}
+                  onWithdraw={isActive ? handleWithdraw : undefined}
+                  onAnswer={isActive && myRole === 'host'
+                    ? (qId, ans) => setConfirmAnswer({ questionId: qId, answer: ans })
+                    : undefined}
+                />
+              ))}
           </div>
-        )}
-        {questions
-          .filter((q) => q.status !== 'withdrawn')
-          .map((q) => (
-            <QuestionBubble
-              key={q.id}
-              question={q}
-              currentUserId={user?.id}
-              onWithdraw={isActive ? handleWithdraw : undefined}
+
+          {/* Q&A Input */}
+          {isActive && myRole === 'player' && (
+            <PlayerInputPanel
+              hasPending={hasPending}
+              questionText={questionText}
+              onChangeText={setQuestionText}
+              onSubmit={onSubmitQuestion}
+              submitting={submitting}
             />
-          ))}
-      </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Discussion */}
+          <DiscussionPanel
+            messages={discussion.messages}
+            currentUserId={user?.id}
+            hasMore={discussion.hasMore}
+            loading={discussion.loading}
+            onLoadMore={discussion.loadMore}
+          />
 
-      {/* Bottom Input / Host Panel / Ended Area */}
-      {isActive && myRole === 'player' && (
-        <PlayerInputPanel
-          hasPending={hasPending}
-          questionText={questionText}
-          onChangeText={setQuestionText}
-          onSubmit={onSubmitQuestion}
-          submitting={submitting}
-        />
+          {/* Chat Input */}
+          <ChatInput
+            isHost={myRole === 'host'}
+            isActive={isActive}
+            onSend={discussion.sendMessage}
+          />
+        </>
       )}
 
-      {isActive && myRole === 'host' && (
-        <HostAnswerPanel
-          pendingQuestions={pendingQuestions}
-          onConfirmAnswer={(qId, ans) => setConfirmAnswer({ questionId: qId, answer: ans })}
-        />
-      )}
-
+      {/* Ended Area (always visible regardless of tab) */}
       {channelEnded && (
         <div className="flex-shrink-0 border-t border-border bg-surface/50 p-4 space-y-4 max-h-[60vh] overflow-y-auto">
           {channelStats && showStats && <StatsPanel stats={channelStats} />}

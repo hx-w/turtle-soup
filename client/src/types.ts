@@ -90,6 +90,20 @@ export interface ChannelStats {
   };
 }
 
+export interface ChatMessage {
+  id: string;
+  channelId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  user: { id: string; nickname: string; avatarSeed: string };
+}
+
+export interface ChatListResponse {
+  messages: ChatMessage[];
+  hasMore: boolean;
+}
+
 export interface UserStats {
   hosted: number;
   participated: number;

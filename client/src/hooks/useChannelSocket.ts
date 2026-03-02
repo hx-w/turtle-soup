@@ -4,7 +4,7 @@ import {
   joinChannel as socketJoinChannel,
   leaveChannel as socketLeaveChannel,
 } from '../lib/socket';
-import type { Question } from '../types';
+import type { Question, ChatMessage } from '../types';
 
 interface LocalOnlineUser {
   id: string;
@@ -26,6 +26,7 @@ interface UseChannelSocketCallbacks {
   onRoleChanged: (userId: string) => void;
   onChannelEnded: (truth?: string) => void;
   onOnlineUsersUpdate: (users: LocalOnlineUser[]) => void;
+  onNewChatMessage?: (message: ChatMessage) => void;
 }
 
 export function useChannelSocket(
@@ -97,6 +98,12 @@ export function useChannelSocket(
       }
     }
 
+    function handleNewChat(data: any) {
+      if (data.channelId && data.channelId !== channelId) return;
+      const msg: ChatMessage = data.message || data;
+      callbacks.onNewChatMessage?.(msg);
+    }
+
     s.on('question:new', handleNewQuestion);
     s.on('question:answered', handleAnswered);
     s.on('question:withdrawn', handleWithdrawn);
@@ -104,6 +111,7 @@ export function useChannelSocket(
     s.on('channel:ended', handleChannelEnded);
     s.on('channel:user_joined', handleUserJoined);
     s.on('channel:user_left', handleUserLeft);
+    s.on('chat:new', handleNewChat);
 
     return () => {
       socketLeaveChannel(channelId);
@@ -114,6 +122,7 @@ export function useChannelSocket(
       s.off('channel:ended', handleChannelEnded);
       s.off('channel:user_joined', handleUserJoined);
       s.off('channel:user_left', handleUserLeft);
+      s.off('chat:new', handleNewChat);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, userId]);
