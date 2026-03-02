@@ -4,6 +4,7 @@ import { MessageSquare, HelpCircle } from 'lucide-react';
 export type TabKey = 'qa' | 'discussion';
 
 interface ChannelTabsProps {
+  channelId?: string;
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
   answeredCount: number;
@@ -16,6 +17,7 @@ const tabs: { key: TabKey; label: string; icon: typeof HelpCircle }[] = [
 ];
 
 export default function ChannelTabs({
+  channelId,
   activeTab,
   onTabChange,
   answeredCount,
@@ -58,7 +60,7 @@ export default function ChannelTabs({
             {/* Active indicator */}
             {isActive && (
               <motion.div
-                layoutId="tab-indicator"
+                layoutId={channelId ? `tab-indicator-${channelId}` : undefined}
                 className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />

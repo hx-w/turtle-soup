@@ -88,6 +88,10 @@ export interface ChannelStats {
     mostActive: PlayerAward | null;
     lastYes: Question | null;
   };
+  // Rating data
+  averageRating?: number;
+  ratingCount?: number;
+  myRating?: { score: number; comment?: string } | null;
 }
 
 export interface ChatMessage {

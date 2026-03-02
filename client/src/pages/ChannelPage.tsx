@@ -209,6 +209,7 @@ export default function ChannelPage() {
 
       {/* Tabs */}
       <ChannelTabs
+        channelId={channel.id}
         activeTab={activeTab}
         onTabChange={handleTabChange}
         answeredCount={answeredCount}
@@ -278,7 +279,15 @@ export default function ChannelPage() {
       {channelEnded && (
         <div className="flex-shrink-0 border-t border-border bg-surface/50 p-4 space-y-4 max-h-[60vh] overflow-y-auto">
           {channelStats && showStats && <StatsPanel stats={channelStats} />}
-          <RatingStars channelId={channel.id} existingRating={undefined} />
+          {myRole === 'player' && (
+            <RatingStars
+              channelId={channel.id}
+              existingRating={channelStats?.myRating ?? undefined}
+              averageRating={channelStats?.averageRating}
+              ratingCount={channelStats?.ratingCount}
+              onSubmit={() => loadStats()}
+            />
+          )}
         </div>
       )}
 

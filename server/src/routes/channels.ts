@@ -373,7 +373,7 @@ router.post('/:id/end', authRequired, async (req: Request, res: Response) => {
 });
 
 // Get channel stats
-router.get('/:id/stats', async (req: Request, res: Response) => {
+router.get('/:id/stats', authRequired, async (req: Request, res: Response) => {
   try {
     const channelId = req.params.id;
     const channel = await prisma.channel.findUnique({
@@ -416,6 +416,16 @@ router.get('/:id/stats', async (req: Request, res: Response) => {
       ? Math.round((channel.endedAt.getTime() - channel.createdAt.getTime()) / 1000)
       : null;
 
+    // Get rating data
+    const ratings = await prisma.rating.findMany({
+      where: { channelId },
+      select: { score: true, userId: true, comment: true },
+    });
+    const averageRating = ratings.length > 0
+      ? Math.round((ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length) * 10) / 10
+      : null;
+    const myRating = ratings.find(r => r.userId === req.user!.userId);
+
     res.json({
       totalQuestions: total,
       distribution: { yes: yesCount, no: noCount, irrelevant: irrelevantCount },
@@ -426,6 +436,9 @@ router.get('/:id/stats', async (req: Request, res: Response) => {
       })),
       duration,
       awards: { bestDetective, mostWrong, mostActive, lastYes },
+      averageRating,
+      ratingCount: ratings.length,
+      myRating: myRating ? { score: myRating.score, comment: myRating.comment ?? undefined } : null,
     });
   } catch (err) {
     logger.error('Channel stats fetch failed', { error: String(err) });

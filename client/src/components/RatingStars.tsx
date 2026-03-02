@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Send } from 'lucide-react';
 import { api } from '../lib/api';
+import { toast } from '../stores/toastStore';
 
 interface RatingStarsProps {
   channelId: string;
@@ -36,8 +37,8 @@ export default function RatingStars({
       });
       setSubmitted(true);
       onSubmit?.({ score, comment: comment.trim() || undefined });
-    } catch (err) {
-      console.error('Failed to submit rating:', err);
+    } catch (err: any) {
+      toast.error(err?.message || '评分失败');
     } finally {
       setSubmitting(false);
     }

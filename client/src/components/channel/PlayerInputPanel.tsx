@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 
 interface PlayerInputPanelProps {
   hasPending: boolean;

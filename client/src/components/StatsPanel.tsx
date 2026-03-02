@@ -6,6 +6,7 @@ import {
   RotateCcw,
   Clock,
   HelpCircle,
+  Star,
 } from 'lucide-react';
 import type { ChannelStats } from '../types';
 
@@ -136,6 +137,35 @@ export default function StatsPanel({ stats }: StatsPanelProps) {
           <p className="text-xs text-text-muted">游戏时长</p>
         </div>
       </div>
+
+      {/* Rating display */}
+      {typeof stats.averageRating === 'number' && stats.averageRating > 0 && (
+        <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-text">玩家评分</p>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star
+                    key={i}
+                    className={`w-4 h-4 ${
+                      i <= Math.round(stats.averageRating!)
+                        ? 'text-accent fill-accent'
+                        : 'text-border'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-sm font-semibold text-accent">
+                {stats.averageRating.toFixed(1)}
+              </span>
+              <span className="text-xs text-text-muted">
+                ({stats.ratingCount} 人评价)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Distribution bar */}
       <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-4">
