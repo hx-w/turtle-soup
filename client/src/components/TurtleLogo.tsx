@@ -43,7 +43,7 @@ export default function TurtleLogo({ className = '', size = 40 }: TurtleLogoProp
       />
       {/* Head */}
       <circle cx="52" cy="28" r="5" fill="#51cf66" />
-      <circle cx="54" cy="27" r="1.5" fill="#0a0a1a" />
+      <circle cx="54" cy="27" r="1.5" fill="rgb(var(--color-bg))" />
       {/* Legs */}
       <ellipse cx="20" cy="40" rx="4" ry="3" fill="#51cf66" transform="rotate(-20 20 40)" />
       <ellipse cx="44" cy="40" rx="4" ry="3" fill="#51cf66" transform="rotate(20 44 40)" />

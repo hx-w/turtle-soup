@@ -2,25 +2,26 @@ import type { Config } from 'tailwindcss';
 
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        bg: '#0a0a1a',
-        surface: '#141432',
-        card: '#1c1c3c',
+        bg: 'rgb(var(--color-bg) / <alpha-value>)',
+        surface: 'rgb(var(--color-surface) / <alpha-value>)',
+        card: 'rgb(var(--color-card) / <alpha-value>)',
         primary: {
-          DEFAULT: '#7c6ff7',
-          light: '#9d93fa',
+          DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
+          light: 'rgb(var(--color-primary-light) / <alpha-value>)',
         },
-        accent: '#ffd43b',
-        yes: '#51cf66',
-        no: '#ff6b6b',
-        irrelevant: '#868e96',
+        accent: 'rgb(var(--color-accent) / <alpha-value>)',
+        yes: 'rgb(var(--color-yes) / <alpha-value>)',
+        no: 'rgb(var(--color-no) / <alpha-value>)',
+        irrelevant: 'rgb(var(--color-irrelevant) / <alpha-value>)',
         text: {
-          DEFAULT: '#e9ecef',
-          muted: '#adb5bd',
+          DEFAULT: 'rgb(var(--color-text) / <alpha-value>)',
+          muted: 'rgb(var(--color-text-muted) / <alpha-value>)',
         },
-        border: '#2a2a4a',
+        border: 'rgb(var(--color-border) / <alpha-value>)',
       },
       fontFamily: {
         heading: ['Outfit', 'system-ui', 'sans-serif'],

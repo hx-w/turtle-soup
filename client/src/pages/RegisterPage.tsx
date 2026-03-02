@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, Ticket } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Ticket, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import TurtleLogo from '../components/TurtleLogo';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 
 export default function RegisterPage() {
   const [nickname, setNickname] = useState('');
@@ -14,6 +15,8 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const register = useAuthStore((s) => s.register);
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +36,16 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-bg to-surface flex items-center justify-center px-4">
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        className="fixed top-4 right-4 z-50 p-2.5 rounded-xl bg-card/80 backdrop-blur-xl border border-border
+                   text-text-muted hover:text-text shadow-sm transition-all duration-200 ease-out cursor-pointer"
+        aria-label={theme === 'light' ? '切换到暗色模式' : '切换到亮色模式'}
+      >
+        {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+      </button>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

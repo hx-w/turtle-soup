@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { LogOut, User, ChevronDown } from 'lucide-react';
+import { LogOut, User, ChevronDown, Sun, Moon } from 'lucide-react';
 import TurtleLogo from './TurtleLogo';
 import Avatar from './Avatar';
 import Navbar from './Navbar';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 
 export default function Layout() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const navigate = useNavigate();
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -57,7 +60,16 @@ export default function Layout() {
               </span>
             </button>
 
-            {/* User menu */}
+            {/* Theme toggle + User menu */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-xl hover:bg-card/60 transition-all duration-200 ease-out cursor-pointer text-text-muted hover:text-text"
+                aria-label={theme === 'light' ? '切换到暗色模式' : '切换到亮色模式'}
+              >
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+
             {user && (
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -112,6 +124,7 @@ export default function Layout() {
                 )}
               </div>
             )}
+            </div>
           </div>
         </header>
       )}

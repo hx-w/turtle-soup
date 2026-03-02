@@ -3,11 +3,56 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-bg text-text font-body antialiased;
+  /* ------------------------------------------------------------------ */
+  /*  Light theme (default)                                              */
+  /* ------------------------------------------------------------------ */
+  :root {
+    --color-bg: 248 249 252;
+    --color-surface: 238 240 246;
+    --color-card: 255 255 255;
+    --color-primary: 108 92 231;
+    --color-primary-light: 133 119 237;
+    --color-accent: 230 168 23;
+    --color-yes: 46 172 74;
+    --color-no: 231 76 60;
+    --color-irrelevant: 107 114 128;
+    --color-text: 26 26 46;
+    --color-text-muted: 100 104 138;
+    --color-border: 223 226 234;
   }
 
-  /* Custom scrollbar for dark theme */
+  /* ------------------------------------------------------------------ */
+  /*  Dark theme                                                         */
+  /* ------------------------------------------------------------------ */
+  .dark {
+    --color-bg: 10 10 26;
+    --color-surface: 20 20 50;
+    --color-card: 28 28 60;
+    --color-primary: 124 111 247;
+    --color-primary-light: 157 147 250;
+    --color-accent: 255 212 59;
+    --color-yes: 81 207 102;
+    --color-no: 255 107 107;
+    --color-irrelevant: 134 142 150;
+    --color-text: 233 236 239;
+    --color-text-muted: 173 181 189;
+    --color-border: 42 42 74;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-bg text-text font-body antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -45,7 +90,11 @@
 
 @layer components {
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-border rounded-2xl;
+    @apply bg-card/80 backdrop-blur-xl border border-border rounded-2xl shadow-sm;
+  }
+
+  :is(.dark .glass-card) {
+    @apply bg-card/60 shadow-none;
   }
 
   .glass-nav {
