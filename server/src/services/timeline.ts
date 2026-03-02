@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { EventType, Prisma } from '@prisma/client';
+import { EventType } from '@prisma/client';
 
 interface EventData {
   userId?: string;
@@ -15,7 +15,8 @@ async function recordEvent(channelId: string, type: EventType, data: EventData =
         type,
         userId: data.userId ?? null,
         questionId: data.questionId ?? null,
-        metadata: data.metadata ?? Prisma.JsonNull,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        metadata: (data.metadata ?? null) as any,
       },
     });
   } catch (error) {
