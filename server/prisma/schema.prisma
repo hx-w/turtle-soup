@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChannelStatus {
+  active
+  ended
+  archived
+}
+
+enum QuestionStatus {
+  pending
+  answered
+  withdrawn
+}
+
+enum AnswerType {
+  yes
+  no
+  irrelevant
+}
+
+enum MemberRole {
+  host
+  player
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+  hell
+}
+
+model User {
+  id              String          @id @default(uuid())
+  nickname        String          @unique @db.VarChar(16)
+  passwordHash    String
+  avatarSeed      String          @default(uuid())
+  createdAt       DateTime        @default(now())
+  channels        ChannelMember[]
+  questions       Question[]      @relation("asker")
+  answers         Question[]      @relation("answerer")
+  ratings         Rating[]
+  createdChannels Channel[]
+}
+
+model InviteCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  maxUses   Int      @default(0)
+  usedCount Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Channel {
+  id           String          @id @default(uuid())
+  title        String          @db.VarChar(50)
+  surface      String
+  truth        String
+  maxQuestions Int             @default(0)
+  status       ChannelStatus   @default(active)
+  difficulty   Difficulty      @default(medium)
+  tags         String[]        @default([])
+  creatorId    String
+  creator      User            @relation(fields: [creatorId], references: [id])
+  createdAt    DateTime        @default(now())
+  endedAt      DateTime?
+  members      ChannelMember[]
+  questions    Question[]
+  ratings      Rating[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ChannelMember {
+  id           String    @id @default(uuid())
+  channelId    String
+  userId       String
+  role         MemberRole @default(player)
+  joinedAt     DateTime  @default(now())
+  becameHostAt DateTime?
+  channel      Channel   @relation(fields: [channelId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@unique([channelId, userId])
+}
+
+model Question {
+  id         String    @id @default(uuid())
+  channelId  String
+  askerId    String
+  content    String
+  status     QuestionStatus @default(pending)
+  answer     AnswerType?
+  answeredBy String?
+  createdAt  DateTime  @default(now())
+  answeredAt DateTime?
+  channel    Channel   @relation(fields: [channelId], references: [id])
+  asker      User      @relation("asker", fields: [askerId], references: [id])
+  answerer   User?     @relation("answerer", fields: [answeredBy], references: [id])
+
+  @@index([channelId, status])
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  channelId String
+  userId    String
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now())
+  channel   Channel  @relation(fields: [channelId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([channelId, userId])
+}

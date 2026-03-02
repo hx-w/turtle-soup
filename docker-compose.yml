@@ -1,0 +1,33 @@
+services:
+  server:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-turtle}:${POSTGRES_PASSWORD:-turtle123}@postgres:5432/${POSTGRES_DB:-turtle_soup}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh_secret}
+      INITIAL_INVITE_CODE: ${INITIAL_INVITE_CODE:-TURTLE2024}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-turtle}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-turtle123}
+      POSTGRES_DB: ${POSTGRES_DB:-turtle_soup}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-turtle}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:

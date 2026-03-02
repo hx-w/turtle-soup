@@ -1,0 +1,40 @@
+import { motion } from 'framer-motion';
+import { Check, X, Minus } from 'lucide-react';
+
+interface AnswerStampProps {
+  answer: 'yes' | 'no' | 'irrelevant';
+}
+
+const config = {
+  yes: {
+    label: '是',
+    icon: Check,
+    classes: 'bg-yes/20 text-yes border-yes',
+  },
+  no: {
+    label: '否',
+    icon: X,
+    classes: 'bg-no/20 text-no border-no',
+  },
+  irrelevant: {
+    label: '无关',
+    icon: Minus,
+    classes: 'bg-irrelevant/20 text-irrelevant border-irrelevant',
+  },
+} as const;
+
+export default function AnswerStamp({ answer }: AnswerStampProps) {
+  const { label, icon: Icon, classes } = config[answer];
+
+  return (
+    <motion.div
+      initial={{ scale: 0, rotate: -15 }}
+      animate={{ scale: 1, rotate: 0 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 font-heading font-bold text-sm ${classes}`}
+    >
+      <Icon className="w-4 h-4" strokeWidth={3} />
+      <span>{label}</span>
+    </motion.div>
+  );
+}
