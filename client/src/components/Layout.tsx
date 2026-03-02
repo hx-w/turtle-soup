@@ -43,7 +43,7 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="min-h-[100dvh] bg-bg flex flex-col">
       {/* Top bar - hidden on auth pages */}
       {!isAuthPage && (
         <header className="sticky top-0 z-50 glass-nav">
@@ -132,8 +132,10 @@ export default function Layout() {
       {/* Main content */}
       <main
         className={`flex-1 ${
-          !isAuthPage && !isChannelPage ? 'pb-20' : ''
-        } ${!isAuthPage ? 'pt-2' : ''}`}
+          isChannelPage
+            ? 'min-h-0 flex flex-col overflow-hidden'
+            : `${!isAuthPage ? 'pb-20 pt-2' : ''}`
+        }`}
       >
         <Outlet />
       </main>

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { Loader2, Send } from 'lucide-react';
 
 interface PlayerInputPanelProps {
@@ -16,20 +16,31 @@ export default function PlayerInputPanel({
   onSubmit,
   submitting,
 }: PlayerInputPanelProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    // Clamp to max ~4 lines (approx 96px)
+    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+  }, []);
+
+  useEffect(() => {
+    autoResize();
+  }, [questionText, autoResize]);
 
   return (
-    <div className="sticky bottom-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3">
+    <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3 safe-area-bottom">
       {hasPending ? (
         <div className="flex items-center justify-center gap-2 py-2">
           <Loader2 className="w-4 h-4 text-primary animate-spin" />
           <span className="text-sm text-text-muted">等待回答中...</span>
         </div>
       ) : (
-        <div className="flex items-center gap-2">
-          <input
-            ref={inputRef}
-            type="text"
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={textareaRef}
             value={questionText}
             onChange={(e) => onChangeText(e.target.value)}
             onKeyDown={(e) => {
@@ -40,15 +51,19 @@ export default function PlayerInputPanel({
             }}
             placeholder="输入你的问题..."
             maxLength={500}
+            rows={1}
+            enterKeyHint="send"
+            autoComplete="off"
             className="flex-1 bg-card border border-border rounded-xl px-4 py-2.5
-                       text-sm text-text placeholder:text-text-muted/50
+                       text-base text-text placeholder:text-text-muted/50
                        focus:outline-none focus:border-primary/50
-                       transition-colors duration-200"
+                       resize-none transition-colors duration-200 leading-normal"
           />
           <button
             onClick={onSubmit}
             disabled={!questionText.trim() || submitting}
-            className="p-2.5 bg-primary hover:bg-primary-light disabled:opacity-40
+            className="flex-shrink-0 w-11 h-11 flex items-center justify-center
+                       bg-primary hover:bg-primary-light disabled:opacity-40
                        disabled:cursor-not-allowed rounded-xl text-white
                        transition-all duration-200 cursor-pointer"
           >

@@ -41,6 +41,8 @@
 
   html {
     color-scheme: light;
+    overflow-x: hidden;
+    overscroll-behavior: none;
   }
 
   html.dark {
@@ -50,6 +52,18 @@
   body {
     @apply bg-bg text-text font-body antialiased;
     transition: background-color 0.3s ease, color 0.3s ease;
+    overflow-x: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
+  @media screen and (max-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
   }
 
   /* Custom scrollbar */

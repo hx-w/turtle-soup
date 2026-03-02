@@ -146,7 +146,7 @@ export default function ChannelPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="flex-1 min-h-0 bg-bg flex flex-col overflow-hidden">
       <ChannelHeader
         channel={channel}
         isActive={isActive}
@@ -176,7 +176,7 @@ export default function ChannelPage() {
       />
 
       {/* Question Timeline */}
-      <div ref={timelineRef} className="flex-1 overflow-y-auto py-3 space-y-1">
+      <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto py-3 space-y-1 overscroll-none">
         {questions.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-text-muted">
             <HelpCircle className="w-12 h-12 mb-3 opacity-30" />
@@ -215,7 +215,7 @@ export default function ChannelPage() {
       )}
 
       {channelEnded && (
-        <div className="border-t border-border bg-surface/50 p-4 space-y-4">
+        <div className="flex-shrink-0 border-t border-border bg-surface/50 p-4 space-y-4 max-h-[60vh] overflow-y-auto">
           {channelStats && showStats && <StatsPanel stats={channelStats} />}
           <RatingStars channelId={channel.id} existingRating={undefined} />
         </div>

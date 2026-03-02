@@ -108,7 +108,7 @@ export default function RatingStars({
             maxLength={500}
             rows={3}
             className="w-full bg-surface border border-border rounded-xl px-4 py-3
-                       text-sm text-text placeholder:text-text-muted/50
+                       text-base text-text placeholder:text-text-muted/50
                        focus:outline-none focus:border-primary/50
                        resize-none transition-colors duration-200"
           />

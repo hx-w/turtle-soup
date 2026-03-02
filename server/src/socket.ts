@@ -10,6 +10,19 @@ interface AuthenticatedSocket extends Socket {
 // Track online users per channel: channelId -> Set of { userId, nickname }
 const onlineUsers = new Map<string, Map<string, string>>();
 
+// Lobby room name for broadcasting new channels
+const LOBBY_ROOM = 'lobby';
+
+// Export io instance for broadcasting from routes
+let ioInstance: Server;
+
+export function getIO(): Server {
+  if (!ioInstance) {
+    throw new Error('Socket.io not initialized');
+  }
+  return ioInstance;
+}
+
 export function setupSocket(httpServer: HttpServer) {
   const corsOrigin = process.env.CORS_ORIGIN;
   const io = new Server(httpServer, {
@@ -18,7 +31,7 @@ export function setupSocket(httpServer: HttpServer) {
       credentials: !!corsOrigin,
     },
   });
-
+  ioInstance = io;
   // Auth middleware
   io.use((socket: AuthenticatedSocket, next) => {
     const token = socket.handshake.auth.token;
@@ -61,6 +74,16 @@ export function setupSocket(httpServer: HttpServer) {
       });
     });
 
+    // Lobby events - for receiving new channel notifications
+    socket.on(SocketEvents.LOBBY_JOIN, () => {
+      socket.join(LOBBY_ROOM);
+    });
+
+    socket.on(SocketEvents.LOBBY_LEAVE, () => {
+      socket.leave(LOBBY_ROOM);
+    });
+
+    // Broadcast events (called from API routes via io instance)
     // Broadcast events (called from API routes via io instance)
     socket.on(SocketEvents.QUESTION_NEW, (data) => {
       io.to(data.channelId).emit(SocketEvents.QUESTION_NEW, data);

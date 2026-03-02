@@ -33,9 +33,9 @@ export default function ChannelHeader({
 }: ChannelHeaderProps) {
   return (
     <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-xl border-b border-border px-4 py-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-lg font-heading font-bold text-text truncate">
+      <div className="flex items-center justify-between gap-2 overflow-hidden">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+          <h1 className="text-base font-heading font-bold text-text truncate max-w-[50vw] sm:max-w-none sm:text-lg">
             {channel.title}
           </h1>
           <span
@@ -59,7 +59,7 @@ export default function ChannelHeader({
 
         <button
           onClick={onShowOnlineUsers}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+          className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
                      bg-surface hover:bg-card border border-border
                      text-text-muted text-sm transition-colors duration-200 cursor-pointer"
         >

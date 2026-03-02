@@ -62,6 +62,23 @@ export function leaveChannel(channelId: string) {
   socket.emit(SocketEvents.CHANNEL_LEAVE, channelId);
 }
 
+// Lobby events
+export function joinLobby() {
+  socket.emit(SocketEvents.LOBBY_JOIN);
+}
+
+export function leaveLobby() {
+  socket.emit(SocketEvents.LOBBY_LEAVE);
+}
+
+export function onChannelCreated(callback: (channel: unknown) => void) {
+  socket.on(SocketEvents.CHANNEL_CREATED, callback);
+}
+
+export function offChannelCreated(callback: (channel: unknown) => void) {
+  socket.off(SocketEvents.CHANNEL_CREATED, callback);
+}
+
 export function emitQuestionNew(data: { channelId: string; question: unknown }) {
   socket.emit(SocketEvents.QUESTION_NEW, data);
 }

@@ -15,7 +15,7 @@ export default function HostAnswerPanel({
 }: HostAnswerPanelProps) {
   if (pendingQuestions.length === 0) {
     return (
-      <div className="sticky bottom-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-4">
+      <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-4">
         <p className="text-sm text-text-muted text-center">
           暂无待回答的问题
         </p>
@@ -24,7 +24,7 @@ export default function HostAnswerPanel({
   }
 
   return (
-    <div className="sticky bottom-0 bg-surface/80 backdrop-blur-xl border-t border-border">
+    <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border">
       <div className="px-4 py-2 border-b border-border">
         <p className="text-xs font-medium text-text-muted">
           待回答 ({pendingQuestions.length})

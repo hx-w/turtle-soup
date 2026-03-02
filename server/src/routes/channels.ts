@@ -5,7 +5,8 @@ import { prisma } from '../lib/prisma';
 import { authRequired } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { logger } from '../lib/logger';
-
+import { getIO } from '../socket';
+import { SocketEvents } from '../constants';
 // Express 5 types: narrow params to string (our routes always have string params)
 type Request = ExpressRequest<Record<string, string>>;
 
@@ -30,7 +31,7 @@ const ratingSchema = z.object({
 });
 
 const questionSchema = z.object({
-  content: z.string().min(5).max(500),
+  content: z.string().min(1).max(500),
 });
 
 // Create channel
@@ -50,8 +51,16 @@ router.post('/', authRequired, validate(createSchema), async (req: Request, res:
           create: { userId: req.user!.userId, role: 'host', becameHostAt: new Date() },
         },
       },
-      include: { members: { include: { user: { select: { id: true, nickname: true, avatarSeed: true } } } } },
+      include: {
+        creator: { select: { id: true, nickname: true, avatarSeed: true } },
+        members: { include: { user: { select: { id: true, nickname: true, avatarSeed: true } } } },
+        _count: { select: { members: true, questions: { where: { status: 'answered' } } } },
+      },
     });
+
+    // Broadcast new channel to lobby
+    const io = getIO();
+    io.to('lobby').emit(SocketEvents.CHANNEL_CREATED, channel);
 
     res.json(channel);
   } catch (err) {
@@ -180,11 +189,16 @@ router.post('/:id/questions', authRequired, validate(questionSchema), async (req
       return;
     }
 
-    // Check role
-    const member = await prisma.channelMember.findUnique({
+    // Auto-join as player if not a member
+    let member = await prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId } },
     });
-    if (!member || member.role === 'host') {
+    if (!member) {
+      member = await prisma.channelMember.create({
+        data: { channelId, userId, role: 'player' },
+      });
+    }
+    if (member.role === 'host') {
       res.status(403).json({ error: '主持人不能提问' });
       return;
     }
@@ -297,12 +311,14 @@ router.post('/:id/reveal', authRequired, async (req: Request, res: Response) => 
       return;
     }
 
-    const member = await prisma.channelMember.findUnique({
+    // Auto-join as player if not a member
+    let member = await prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId } },
     });
     if (!member) {
-      res.status(400).json({ error: '你不在此 Channel 中' });
-      return;
+      member = await prisma.channelMember.create({
+        data: { channelId, userId, role: 'player' },
+      });
     }
     if (member.role === 'host') {
       res.json({ truth: channel.truth, alreadyHost: true });

@@ -49,15 +49,25 @@ export function useChannelData(
     async function fetchChannel() {
       try {
         setLoading(true);
-        const data = await api.get<Channel>(`/channels/${channelId}`);
-        setChannel(data);
-        setQuestions(data.questions ?? []);
+        let data = await api.get<Channel>(`/channels/${channelId}`);
 
+        // Auto-join if not a member and channel is active
         const membership = data.members?.find(
           (m: ChannelMember) => m.userId === user?.id,
         );
-        if (membership) {
-          setMyRole(membership.role);
+        if (!membership && data.status === 'active') {
+          await api.post(`/channels/${channelId}/join`);
+          data = await api.get<Channel>(`/channels/${channelId}`);
+        }
+
+        setChannel(data);
+        setQuestions(data.questions ?? []);
+
+        const updatedMembership = data.members?.find(
+          (m: ChannelMember) => m.userId === user?.id,
+        );
+        if (updatedMembership) {
+          setMyRole(updatedMembership.role);
         }
 
         if (data.truth) {

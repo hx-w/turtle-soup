@@ -41,6 +41,7 @@ interface ChannelState {
   addQuestion: (question: Question) => void;
   updateQuestion: (question: Question) => void;
   removeQuestion: (questionId: string) => void;
+  prependChannel: (channel: Channel) => void;
   setMyRole: (role: 'host' | 'player' | null) => void;
   setChannelStatus: (status: 'active' | 'ended' | 'archived') => void;
   reset: () => void;
@@ -157,6 +158,14 @@ export const useChannelStore = create<ChannelState>((set) => ({
     set((state) => ({
       questions: state.questions.filter((q) => q.id !== questionId),
     })),
+
+  prependChannel: (channel) =>
+    set((state) => {
+      // Avoid duplicates
+      if (state.channels.find((c) => c.id === channel.id)) return state;
+      // Only prepend if showing active channels (default view)
+      return { channels: [channel, ...state.channels] };
+    }),
 
   setMyRole: (role) => set({ myRole: role }),
 

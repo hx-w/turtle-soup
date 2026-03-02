@@ -5,7 +5,8 @@ import { motion } from 'framer-motion';
 import ChannelCard from '../components/ChannelCard';
 import ChannelCardSkeleton from '../components/ChannelCardSkeleton';
 import { useChannelStore } from '../stores/channelStore';
-
+import { joinLobby, leaveLobby, onChannelCreated, offChannelCreated } from '../lib/socket';
+import type { Channel } from '../types';
 const statusFilters = [
   { value: 'active', label: '进行中' },
   { value: 'ended', label: '已结束' },
@@ -21,11 +22,11 @@ const difficultyFilters = [
 
 export default function LobbyPage() {
   const navigate = useNavigate();
-  const { channels, isLoadingList, fetchChannels, totalPages } = useChannelStore();
-  const [search, setSearch] = useState('');
+  const { channels, isLoadingList, fetchChannels, totalPages, prependChannel } = useChannelStore();
   const [status, setStatus] = useState('active');
   const [difficulty, setDifficulty] = useState('');
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   const loadChannels = useCallback(() => {
@@ -51,6 +52,25 @@ export default function LobbyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
+  // Listen for new channels in lobby (only when viewing active channels on page 1)
+  useEffect(() => {
+    // Only join lobby when viewing active channels without filters
+    const shouldListen = status === 'active' && !search && !difficulty && page === 1;
+
+    if (shouldListen) {
+      joinLobby();
+
+      const handleNewChannel = (channel: unknown) => {
+        prependChannel(channel as Channel);
+      };
+      onChannelCreated(handleNewChannel);
+
+      return () => {
+        leaveLobby();
+        offChannelCreated(handleNewChannel);
+      };
+    }
+  }, [status, search, difficulty, page, prependChannel]);
   return (
     <div className="max-w-5xl mx-auto px-4 py-4">
       {/* Search bar */}
