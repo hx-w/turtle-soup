@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { Loader2, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 
 interface PlayerInputPanelProps {
   hasPending: boolean;
@@ -34,7 +34,6 @@ export default function PlayerInputPanel({
     <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3 safe-area-bottom">
       {hasPending ? (
         <div className="flex items-center justify-center gap-2 py-2">
-          <Loader2 className="w-4 h-4 text-primary animate-spin" />
           <span className="text-sm text-text-muted">等待回答中...</span>
         </div>
       ) : (

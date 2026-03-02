@@ -102,10 +102,10 @@ export default function CreatePage() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="给你的谜题起个名字 (2-50字符)"
+                placeholder="给你的谜题起个名字 (1-50字符)"
                 className="input-field"
                 required
-                minLength={2}
+                minLength={1}
                 maxLength={50}
               />
             </div>
@@ -123,10 +123,10 @@ export default function CreatePage() {
                 id="surface"
                 value={surface}
                 onChange={(e) => setSurface(e.target.value)}
-                placeholder="描述一个神秘的故事场景... (10-2000字符)"
+                placeholder="描述一个神秘的故事场景... (1-2000字符)"
                 className="input-field min-h-[120px] resize-y"
                 required
-                minLength={10}
+                minLength={1}
                 maxLength={2000}
               />
               <span className="text-xs text-text-muted mt-1 block text-right">
@@ -147,10 +147,10 @@ export default function CreatePage() {
                 id="truth"
                 value={truth}
                 onChange={(e) => setTruth(e.target.value)}
-                placeholder="揭开谜题的真相... (10-5000字符)"
+                placeholder="揭开谜题的真相... (1-5000字符)"
                 className="input-field min-h-[120px] resize-y"
                 required
-                minLength={10}
+                minLength={1}
                 maxLength={5000}
               />
               <span className="text-xs text-text-muted mt-1 block text-right">
