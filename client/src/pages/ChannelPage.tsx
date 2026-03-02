@@ -7,12 +7,14 @@ import { useAuthStore } from '../stores/authStore';
 import { useChannelData } from '../hooks/useChannelData';
 import { useChannelSocket } from '../hooks/useChannelSocket';
 import { useDiscussion } from '../hooks/useDiscussion';
+import { api } from '../lib/api';
 import ChannelHeader from '../components/channel/ChannelHeader';
 import SurfacePanel from '../components/channel/SurfacePanel';
 import ActionButtons from '../components/channel/ActionButtons';
 import ChannelTabs from '../components/channel/ChannelTabs';
 import type { TabKey } from '../components/channel/ChannelTabs';
 import PlayerInputPanel from '../components/channel/PlayerInputPanel';
+import AnswerDrawer from '../components/channel/AnswerDrawer';
 import DiscussionPanel from '../components/channel/DiscussionPanel';
 import ChatInput from '../components/channel/ChatInput';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -20,7 +22,9 @@ import QuestionBubble from '../components/QuestionBubble';
 import TruthReveal from '../components/TruthReveal';
 import OnlineUsers from '../components/OnlineUsers';
 import StatsPanel from '../components/StatsPanel';
+import Timeline from '../components/Timeline';
 import RatingStars from '../components/RatingStars';
+import type { TimelineEvent } from '../types';
 
 export default function ChannelPage() {
   const { id: channelId } = useParams<{ id: string }>();
@@ -38,6 +42,9 @@ export default function ChannelPage() {
 
   const discussion = useDiscussion(channelId);
 
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [statsTab, setStatsTab] = useState<'stats' | 'timeline'>('stats');
+
   // UI state
   const [activeTab, setActiveTab] = useState<TabKey>('qa');
   const [surfaceCollapsed, setSurfaceCollapsed] = useState(false);
@@ -49,10 +56,21 @@ export default function ChannelPage() {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [confirmAnswer, setConfirmAnswer] = useState<{
     questionId: string;
-    answer: 'yes' | 'no' | 'irrelevant';
+    answer: 'yes' | 'no' | 'irrelevant' | 'partial';
+    isKeyQuestion: boolean;
   } | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  const loadTimeline = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      const data = await api.get<TimelineEvent[]>(`/channels/${channelId}/timeline`);
+      setTimeline(data);
+    } catch {
+      // Timeline not critical
+    }
+  }, [channelId]);
 
   // Derived
   const answeredCount = questions.filter((q) => q.status === 'answered').length;
@@ -60,6 +78,8 @@ export default function ChannelPage() {
     (q) => q.asker.id === user?.id && q.status === 'pending',
   );
   const isActive = channel?.status === 'active' && !channelEnded;
+  const isHostOrCreator = myRole === 'host' || myRole === 'creator';
+  const pendingQuestions = questions.filter((q) => q.status === 'pending');
 
   // Scroll to bottom on new questions
   const scrollToBottom = useCallback(() => {
@@ -144,7 +164,7 @@ export default function ChannelPage() {
 
   async function onConfirmAnswer() {
     if (!confirmAnswer) return;
-    await handleAnswer(confirmAnswer.questionId, confirmAnswer.answer);
+    await handleAnswer(confirmAnswer.questionId, confirmAnswer.answer, confirmAnswer.isKeyQuestion);
     setConfirmAnswer(null);
   }
 
@@ -235,16 +255,19 @@ export default function ChannelPage() {
                   key={q.id}
                   question={q}
                   currentUserId={user?.id}
-                  isHost={myRole === 'host'}
+                  isHost={isHostOrCreator}
                   onWithdraw={isActive ? handleWithdraw : undefined}
-                  onAnswer={isActive && myRole === 'host'
-                    ? (qId, ans) => setConfirmAnswer({ questionId: qId, answer: ans })
-                    : undefined}
                 />
               ))}
           </div>
 
-          {/* Q&A Input */}
+          {isActive && isHostOrCreator && pendingQuestions.length > 0 && (
+            <AnswerDrawer
+              pendingQuestions={pendingQuestions}
+              onAnswer={handleAnswer}
+            />
+          )}
+
           {isActive && myRole === 'player' && (
             <PlayerInputPanel
               hasPending={hasPending}
@@ -268,25 +291,52 @@ export default function ChannelPage() {
 
           {/* Chat Input */}
           <ChatInput
-            isHost={myRole === 'host'}
+            isHost={isHostOrCreator}
             isActive={isActive}
             onSend={discussion.sendMessage}
           />
         </>
       )}
 
-      {/* Ended Area (always visible regardless of tab) */}
       {channelEnded && (
-        <div className="flex-shrink-0 border-t border-border bg-surface/50 p-4 space-y-4 max-h-[60vh] overflow-y-auto">
-          {channelStats && showStats && <StatsPanel stats={channelStats} />}
-          {myRole === 'player' && (
-            <RatingStars
-              channelId={channel.id}
-              existingRating={channelStats?.myRating ?? undefined}
-              averageRating={channelStats?.averageRating}
-              ratingCount={channelStats?.ratingCount}
-              onSubmit={() => loadStats()}
-            />
+        <div className="flex-shrink-0 border-t border-border bg-surface/50 overflow-y-auto max-h-[50vh]">
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setStatsTab('stats')}
+              className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                statsTab === 'stats' ? 'text-primary border-b-2 border-primary' : 'text-text-muted'
+              }`}
+            >
+              统计
+            </button>
+            <button
+              onClick={() => {
+                setStatsTab('timeline');
+                if (timeline.length === 0) loadTimeline();
+              }}
+              className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                statsTab === 'timeline' ? 'text-primary border-b-2 border-primary' : 'text-text-muted'
+              }`}
+            >
+              时间线
+            </button>
+          </div>
+
+          <div className="p-4">
+            {statsTab === 'stats' && channelStats && <StatsPanel stats={channelStats} />}
+            {statsTab === 'timeline' && <Timeline events={timeline} />}
+          </div>
+
+          {statsTab === 'stats' && myRole === 'player' && channelStats && (
+            <div className="p-4 pt-0">
+              <RatingStars
+                channelId={channel.id}
+                existingRating={channelStats.myRating ?? undefined}
+                averageRating={channelStats.averageRating}
+                ratingCount={channelStats.ratingCount}
+                onSubmit={() => loadStats()}
+              />
+            </div>
           )}
         </div>
       )}
@@ -323,7 +373,7 @@ export default function ChannelPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {confirmEnd && (
+        {confirmEnd && myRole === 'creator' && (
           <ConfirmDialog
             title="确认结束游戏"
             message="结束后将公布汤底，所有人可查看。此操作不可撤销。"
@@ -331,24 +381,6 @@ export default function ChannelPage() {
             variant="danger"
             onConfirm={onEndChannel}
             onCancel={() => setConfirmEnd(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {confirmAnswer && (
-          <ConfirmDialog
-            title="确认回答"
-            message={`确认将此问题标记为「${
-              confirmAnswer.answer === 'yes'
-                ? '是'
-                : confirmAnswer.answer === 'no'
-                  ? '否'
-                  : '无关'
-            }」？`}
-            confirmLabel="确认"
-            onConfirm={onConfirmAnswer}
-            onCancel={() => setConfirmAnswer(null)}
           />
         )}
       </AnimatePresence>

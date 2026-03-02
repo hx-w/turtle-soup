@@ -1,5 +1,3 @@
-export const PRESET_TAGS = ['经典', '恐怖', '温情', '脑洞', '日常'] as const;
-
 export const SocketEvents = {
   // Lobby events
   LOBBY_JOIN: 'lobby:join',

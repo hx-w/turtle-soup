@@ -14,7 +14,7 @@ interface LocalOnlineUser {
   id: string;
   nickname: string;
   avatarSeed?: string;
-  role?: 'host' | 'player';
+  role?: 'creator' | 'host' | 'player';
 }
 
 export function useChannelData(
@@ -23,7 +23,7 @@ export function useChannelData(
 ) {
   const [channel, setChannel] = useState<Channel | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [myRole, setMyRole] = useState<'host' | 'player'>('player');
+  const [myRole, setMyRole] = useState<'creator' | 'host' | 'player'>('player');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<LocalOnlineUser[]>([]);
@@ -130,13 +130,13 @@ export function useChannelData(
   );
 
   const handleAnswer = useCallback(
-    async (questionId: string, answer: 'yes' | 'no' | 'irrelevant') => {
+    async (questionId: string, answer: 'yes' | 'no' | 'irrelevant' | 'partial', isKeyQuestion = false) => {
       if (!channelId) return;
       try {
         const res = await api.put<{
           question: Question;
           channelEnded: boolean;
-        }>(`/channels/${channelId}/questions/${questionId}/answer`, { answer });
+        }>(`/channels/${channelId}/questions/${questionId}/answer`, { answer, isKeyQuestion });
         const answered = res.question || res;
         emitQuestionAnswered({ channelId, question: answered });
         setQuestions((prev) =>
@@ -146,7 +146,9 @@ export function useChannelData(
                   ...q,
                   status: 'answered' as const,
                   answer,
+                  isKeyQuestion,
                   answeredAt: new Date().toISOString(),
+                  answerer: answered.answerer,
                 }
               : q,
           ),
@@ -230,7 +232,7 @@ export function useChannelData(
   const handleSocketRoleChanged = useCallback(
     (userId: string) => {
       if (userId === user?.id) {
-        setMyRole('host');
+        setMyRole((prev) => (prev === 'player' ? 'host' : prev));
       }
       setOnlineUsers((prev) =>
         prev.map((u) =>

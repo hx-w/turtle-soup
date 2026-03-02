@@ -1,18 +1,6 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { logger } from '../lib/logger';
-
-/**
- * Wrap an async route handler so that thrown errors are forwarded
- * to Express error middleware instead of crashing the process.
- */
-export function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>,
-): RequestHandler {
-  return (req, res, next) => {
-    fn(req, res, next).catch(next);
-  };
-}
 
 /**
  * Central error handler — mount as the last middleware.

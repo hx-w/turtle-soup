@@ -119,12 +119,53 @@ describe('Questions', () => {
       const answerRes = await request(app)
         .put(`/api/channels/${channelId}/questions/${questionId}/answer`)
         .set(getAuthHeader(hostToken))
-        .send({ answer: 'yes' });
+        .send({ answer: 'yes', isKeyQuestion: false });
 
       expect(answerRes.status).toBe(200);
       expect(answerRes.body.question.status).toBe('answered');
       expect(answerRes.body.question.answer).toBe('yes');
+      expect(answerRes.body.question.isKeyQuestion).toBe(false);
       expect(answerRes.body.channelEnded).toBe(false);
+    });
+
+    it('should allow marking a question as key question for yes/no answers', async () => {
+      const { hostToken, playerToken, channelId } =
+        await setupChannelWithPlayer();
+
+      const qRes = await request(app)
+        .post(`/api/channels/${channelId}/questions`)
+        .set(getAuthHeader(playerToken))
+        .send({ content: 'Is this the key question?' });
+
+      const questionId = qRes.body.id;
+
+      const answerRes = await request(app)
+        .put(`/api/channels/${channelId}/questions/${questionId}/answer`)
+        .set(getAuthHeader(hostToken))
+        .send({ answer: 'yes', isKeyQuestion: true });
+
+      expect(answerRes.status).toBe(200);
+      expect(answerRes.body.question.isKeyQuestion).toBe(true);
+    });
+
+    it('should allow partial answer type', async () => {
+      const { hostToken, playerToken, channelId } =
+        await setupChannelWithPlayer();
+
+      const qRes = await request(app)
+        .post(`/api/channels/${channelId}/questions`)
+        .set(getAuthHeader(playerToken))
+        .send({ content: 'Is this partially correct?' });
+
+      const questionId = qRes.body.id;
+
+      const answerRes = await request(app)
+        .put(`/api/channels/${channelId}/questions/${questionId}/answer`)
+        .set(getAuthHeader(hostToken))
+        .send({ answer: 'partial', isKeyQuestion: false });
+
+      expect(answerRes.status).toBe(200);
+      expect(answerRes.body.question.answer).toBe('partial');
     });
   });
 

@@ -317,7 +317,7 @@ cd server
 # 确保数据库运行
 docker compose up -d postgres
 
-# 设置测试数据库 URL（可复用开发库或单独建一个）
+# 设置测试数据库 URL
 export DATABASE_URL=postgresql://turtle:turtle123@localhost:5432/turtle_soup
 
 # 运行全部测试
@@ -336,18 +336,47 @@ npm run test:watch
 - Token 刷新
 
 **channel.test.ts** — 房间生命周期：
-- 创建房间（创建者=主持人）
+- 创建房间（创建者=创建者角色）
 - 加入房间（默认=玩家）
-- 结束游戏（权限校验）
+- 结束游戏（权限校验：仅创建者）
 - 列表筛选
 
 **question.test.ts** — 核心游戏逻辑：
 - 提问、pending 锁（同一玩家不能连续提问）
-- 主持人不能提问
-- 回答（状态流转）
+- 创建者和主理人不能提问
+- 回答（状态流转、partial 类型、关键问题标记）
 - 撤回（不计入统计）
 - maxQuestions 到达自动结束
 - 查看汤底 → 身份转换 + 自动撤回 pending 问题
+
+**rating.test.ts** — 评分系统：
+- 评分提交
+- 评分更新
+- 评分查询
+
+**user.test.ts** — 用户接口：
+- 获取当前用户
+- 获取用户统计
+
+### 关键测试场景
+
+**角色系统测试：**
+- 创建者（creator）可以结束游戏
+- 主理人（host）只能回答问题，不能结束游戏
+- 玩家（player）可以提问和查看汤底
+
+**回答类型测试：**
+- 支持 yes/no/irrelevant/partial 四种类型
+- 关键问题标记（isKeyQuestion）仅在 yes/no 时有效
+- partial 和 irrelevant 自动提交（无关键问题选项）
+
+**时间线测试：**
+- 创建汤时记录 channel_created 事件
+- 第一个问题时记录 first_question 事件
+- 回答时记录 question_answered 事件
+- 标记关键问题时记录 key_question 事件
+- 查看汤底时记录 truth_revealed 和 role_changed 事件
+- 结束游戏时记录 channel_ended 事件
 
 ## 构建与部署
 

@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Shield, User } from 'lucide-react';
+import { X, Users } from 'lucide-react';
+import RoleBadge from './RoleBadge';
 
 interface OnlineUser {
   id: string;
   nickname: string;
   avatarSeed?: string;
-  role?: 'host' | 'player';
+  role?: 'creator' | 'host' | 'player';
 }
 
 interface OnlineUsersProps {
@@ -22,7 +23,6 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-40"
       >
-        {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -31,7 +31,6 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
           onClick={onClose}
         />
 
-        {/* Drawer */}
         <motion.div
           initial={{ x: '100%' }}
           animate={{ x: 0 }}
@@ -41,10 +40,9 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
                      bg-card/80 backdrop-blur-xl border-l border-border
                      shadow-2xl shadow-black/30 flex flex-col"
         >
-          {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div className="flex items-center gap-2">
-              <User className="w-5 h-5 text-primary-light" />
+              <Users className="w-5 h-5 text-primary-light" />
               <h3 className="font-heading font-semibold text-text">
                 在线用户
               </h3>
@@ -61,7 +59,6 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
             </button>
           </div>
 
-          {/* User list */}
           <div className="flex-1 overflow-y-auto py-2">
             {users.length === 0 && (
               <p className="text-center text-text-muted text-sm py-8">
@@ -86,16 +83,9 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
                     className="w-8 h-8 rounded-full bg-surface flex-shrink-0"
                   />
                   <span className="text-sm text-text truncate flex-1">
-                    {user.nickname}
+                    @{user.nickname}
                   </span>
-                  {user.role === 'host' ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-primary-light bg-primary/15 px-2 py-0.5 rounded-full">
-                      <Shield className="w-3 h-3" />
-                      主持人
-                    </span>
-                  ) : (
-                    <span className="text-xs text-text-muted">玩家</span>
-                  )}
+                  {user.role && <RoleBadge role={user.role} />}
                 </div>
               );
             })}

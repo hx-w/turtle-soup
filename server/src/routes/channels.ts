@@ -7,7 +7,8 @@ import { validate } from '../middleware/validate';
 import { logger } from '../lib/logger';
 import { getIO } from '../socket';
 import { SocketEvents } from '../constants';
-// Express 5 types: narrow params to string (our routes always have string params)
+import { TimelineService } from '../services/timeline';
+
 type Request = ExpressRequest<Record<string, string>>;
 
 const router = Router();
@@ -22,7 +23,8 @@ const createSchema = z.object({
 });
 
 const answerSchema = z.object({
-  answer: z.enum(['yes', 'no', 'irrelevant']),
+  answer: z.enum(['yes', 'no', 'irrelevant', 'partial']),
+  isKeyQuestion: z.boolean().optional().default(false),
 });
 
 const ratingSchema = z.object({
@@ -52,7 +54,7 @@ router.post('/', authRequired, validate(createSchema), async (req: Request, res:
         ...data,
         creatorId: req.user!.userId,
         members: {
-          create: { userId: req.user!.userId, role: 'host', becameHostAt: new Date() },
+          create: { userId: req.user!.userId, role: 'creator', becameHostAt: new Date() },
         },
       },
       include: {
@@ -62,7 +64,8 @@ router.post('/', authRequired, validate(createSchema), async (req: Request, res:
       },
     });
 
-    // Broadcast new channel to lobby
+    await TimelineService.channelCreated(channel.id, req.user!.userId);
+
     const io = getIO();
     io.to('lobby').emit(SocketEvents.CHANNEL_CREATED, channel);
 
@@ -143,8 +146,8 @@ router.get('/:id', authRequired, async (req: Request, res: Response) => {
 
     // Only show truth to hosts or if channel ended
     const member = channel.members.find(m => m.userId === req.user!.userId);
-    const isHost = member?.role === 'host';
-    if (!isHost && channel.status === 'active') {
+    const isHostOrCreator = member?.role === 'host' || member?.role === 'creator';
+    if (!isHostOrCreator && channel.status === 'active') {
       const { truth: _truth, ...channelWithoutTruth } = channel;
       res.json(channelWithoutTruth);
       return;
@@ -166,12 +169,20 @@ router.post('/:id/join', authRequired, async (req: Request, res: Response) => {
       return;
     }
 
+    const existingMember = await prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId: channel.id, userId: req.user!.userId } },
+    });
+
     const member = await prisma.channelMember.upsert({
       where: { channelId_userId: { channelId: channel.id, userId: req.user!.userId } },
       update: {},
       create: { channelId: channel.id, userId: req.user!.userId, role: 'player' },
       include: { user: { select: { id: true, nickname: true, avatarSeed: true } } },
     });
+
+    if (!existingMember) {
+      await TimelineService.playerJoined(channel.id, req.user!.userId);
+    }
 
     res.json(member);
   } catch (err) {
@@ -201,8 +212,9 @@ router.post('/:id/questions', authRequired, validate(questionSchema), async (req
       member = await prisma.channelMember.create({
         data: { channelId, userId, role: 'player' },
       });
+      await TimelineService.playerJoined(channelId, userId);
     }
-    if (member.role === 'host') {
+    if (member.role === 'host' || member.role === 'creator') {
       res.status(403).json({ error: '主持人不能提问' });
       return;
     }
@@ -221,6 +233,13 @@ router.post('/:id/questions', authRequired, validate(questionSchema), async (req
       include: { asker: { select: { id: true, nickname: true, avatarSeed: true } } },
     });
 
+    const questionCount = await prisma.question.count({ where: { channelId } });
+    if (questionCount === 1) {
+      await TimelineService.firstQuestion(channelId, userId, question.id);
+    } else {
+      await TimelineService.questionAsked(channelId, userId, question.id);
+    }
+
     res.json(question);
   } catch (err) {
     logger.error('Question submission failed', { error: String(err) });
@@ -231,35 +250,51 @@ router.post('/:id/questions', authRequired, validate(questionSchema), async (req
 // Answer question
 router.put('/:id/questions/:qid/answer', authRequired, validate(answerSchema), async (req: Request, res: Response) => {
   try {
-    const { answer } = req.body;
+    const { answer, isKeyQuestion } = req.body;
     const { id: channelId, qid } = req.params;
     const userId = req.user!.userId;
 
-    // Verify host
     const member = await prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId } },
     });
-    if (!member || member.role !== 'host') {
+    if (!member || (member.role !== 'host' && member.role !== 'creator')) {
       res.status(403).json({ error: '只有主持人可以回答' });
       return;
     }
 
-    const question = await prisma.question.findUnique({ where: { id: qid } });
+    const question = await prisma.question.findUnique({
+      where: { id: qid },
+      include: { asker: { select: { nickname: true } } },
+    });
     if (!question || question.channelId !== channelId || question.status !== 'pending') {
       res.status(400).json({ error: '问题不存在或已被回答' });
       return;
     }
 
+    const canMarkKeyQuestion = isKeyQuestion && (answer === 'yes' || answer === 'no');
+
     const updated = await prisma.question.update({
       where: { id: qid },
-      data: { answer, answeredBy: userId, answeredAt: new Date(), status: 'answered' },
+      data: {
+        answer,
+        answeredBy: userId,
+        answeredAt: new Date(),
+        status: 'answered',
+        isKeyQuestion: canMarkKeyQuestion,
+      },
       include: {
         asker: { select: { id: true, nickname: true, avatarSeed: true } },
         answerer: { select: { id: true, nickname: true } },
       },
     });
 
-    // Check if channel should end
+    const answerer = await prisma.user.findUnique({ where: { id: userId }, select: { nickname: true } });
+    await TimelineService.questionAnswered(channelId, qid, answer, answerer?.nickname || '主持人');
+
+    if (canMarkKeyQuestion) {
+      await TimelineService.keyQuestion(channelId, question.askerId, qid, answer);
+    }
+
     const channel = await prisma.channel.findUnique({ where: { id: channelId } });
     if (channel && channel.maxQuestions > 0) {
       const answeredCount = await prisma.question.count({
@@ -270,6 +305,7 @@ router.put('/:id/questions/:qid/answer', authRequired, validate(answerSchema), a
           where: { id: channelId },
           data: { status: 'ended', endedAt: new Date() },
         });
+        await TimelineService.channelEnded(channelId, answeredCount);
         res.json({ question: updated, channelEnded: true });
         return;
       }
@@ -315,7 +351,6 @@ router.post('/:id/reveal', authRequired, async (req: Request, res: Response) => 
       return;
     }
 
-    // Auto-join as player if not a member
     let member = await prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId } },
     });
@@ -323,23 +358,25 @@ router.post('/:id/reveal', authRequired, async (req: Request, res: Response) => 
       member = await prisma.channelMember.create({
         data: { channelId, userId, role: 'player' },
       });
+      await TimelineService.playerJoined(channelId, userId);
     }
-    if (member.role === 'host') {
+    if (member.role === 'host' || member.role === 'creator') {
       res.json({ truth: channel.truth, alreadyHost: true });
       return;
     }
 
-    // Auto-withdraw pending questions
     await prisma.question.updateMany({
       where: { channelId, askerId: userId, status: 'pending' },
       data: { status: 'withdrawn' },
     });
 
-    // Become host
     await prisma.channelMember.update({
       where: { channelId_userId: { channelId, userId } },
       data: { role: 'host', becameHostAt: new Date() },
     });
+
+    await TimelineService.truthRevealed(channelId, userId);
+    await TimelineService.roleChanged(channelId, userId, 'player', 'host');
 
     res.json({ truth: channel.truth, alreadyHost: false });
   } catch (err) {
@@ -348,22 +385,28 @@ router.post('/:id/reveal', authRequired, async (req: Request, res: Response) => 
   }
 });
 
-// End channel
+// End channel (creator only)
 router.post('/:id/end', authRequired, async (req: Request, res: Response) => {
   try {
     const channelId = req.params.id;
     const member = await prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId: req.user!.userId } },
     });
-    if (!member || member.role !== 'host') {
-      res.status(403).json({ error: '只有主持人可以结束' });
+    if (!member || member.role !== 'creator') {
+      res.status(403).json({ error: '只有创建者可以结束游戏' });
       return;
     }
+
+    const answeredCount = await prisma.question.count({
+      where: { channelId, status: 'answered' },
+    });
 
     const channel = await prisma.channel.update({
       where: { id: channelId },
       data: { status: 'ended', endedAt: new Date() },
     });
+
+    await TimelineService.channelEnded(channelId, answeredCount);
 
     res.json(channel);
   } catch (err) {
@@ -393,16 +436,19 @@ router.get('/:id/stats', authRequired, async (req: Request, res: Response) => {
     const yesCount = questions.filter(q => q.answer === 'yes').length;
     const noCount = questions.filter(q => q.answer === 'no').length;
     const irrelevantCount = questions.filter(q => q.answer === 'irrelevant').length;
+    const partialCount = questions.filter(q => q.answer === 'partial').length;
+    const keyQuestionCount = questions.filter(q => q.isKeyQuestion).length;
     const total = questions.length;
 
-    // Per-player stats
-    const playerStats: Record<string, { nickname: string; yes: number; no: number; irrelevant: number; total: number }> = {};
+    const playerStats: Record<string, { nickname: string; yes: number; no: number; irrelevant: number; partial: number; total: number }> = {};
     for (const q of questions) {
       const key = q.askerId;
       if (!playerStats[key]) {
-        playerStats[key] = { nickname: q.asker.nickname, yes: 0, no: 0, irrelevant: 0, total: 0 };
+        playerStats[key] = { nickname: q.asker.nickname, yes: 0, no: 0, irrelevant: 0, partial: 0, total: 0 };
       }
-      playerStats[key][q.answer as 'yes' | 'no' | 'irrelevant']++;
+      if (q.answer === 'yes' || q.answer === 'no' || q.answer === 'irrelevant' || q.answer === 'partial') {
+        playerStats[key][q.answer]++;
+      }
       playerStats[key].total++;
     }
 
@@ -416,7 +462,6 @@ router.get('/:id/stats', authRequired, async (req: Request, res: Response) => {
       ? Math.round((channel.endedAt.getTime() - channel.createdAt.getTime()) / 1000)
       : null;
 
-    // Get rating data
     const ratings = await prisma.rating.findMany({
       where: { channelId },
       select: { score: true, userId: true, comment: true },
@@ -426,14 +471,39 @@ router.get('/:id/stats', authRequired, async (req: Request, res: Response) => {
       : null;
     const myRating = ratings.find(r => r.userId === req.user!.userId);
 
+    const hostContributions = await Promise.all(
+      channel.members
+        .filter(m => m.role === 'host' || m.role === 'creator')
+        .map(async m => {
+          const answeredQuestions = await prisma.question.findMany({
+            where: { channelId, answeredBy: m.userId },
+          });
+          return {
+            id: m.user.id,
+            nickname: m.user.nickname,
+            avatarSeed: m.user.avatarSeed,
+            role: m.role,
+            answeredCount: answeredQuestions.length,
+            yesCount: answeredQuestions.filter(q => q.answer === 'yes').length,
+            noCount: answeredQuestions.filter(q => q.answer === 'no').length,
+            keyQuestions: answeredQuestions.filter(q => q.isKeyQuestion).length,
+          };
+        })
+    );
+
     res.json({
       totalQuestions: total,
-      distribution: { yes: yesCount, no: noCount, irrelevant: irrelevantCount },
+      distribution: { yes: yesCount, no: noCount, irrelevant: irrelevantCount, partial: partialCount },
+      keyQuestionCount,
       playerCount: channel.members.filter(m => m.role === 'player').length,
-      hosts: channel.members.filter(m => m.role === 'host').map(m => ({
-        ...m.user,
+      hosts: channel.members.filter(m => m.role === 'host' || m.role === 'creator').map(m => ({
+        id: m.user.id,
+        nickname: m.user.nickname,
+        avatarSeed: m.user.avatarSeed,
+        role: m.role,
         becameHostAt: m.becameHostAt,
       })),
+      hostContributions,
       duration,
       awards: { bestDetective, mostWrong, mostActive, lastYes },
       averageRating,
@@ -557,7 +627,7 @@ router.post('/:id/chat', authRequired, validate(chatSchema), async (req: Request
       res.status(403).json({ error: '你不是该频道的成员' });
       return;
     }
-    if (member.role === 'host') {
+    if (member.role === 'host' || member.role === 'creator') {
       res.status(403).json({ error: '主持人不能在讨论区发言' });
       return;
     }
@@ -572,6 +642,23 @@ router.post('/:id/chat', authRequired, validate(chatSchema), async (req: Request
     res.json(message);
   } catch (err) {
     logger.error('Chat message send failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Get timeline
+router.get('/:id/timeline', authRequired, async (req: Request, res: Response) => {
+  try {
+    const events = await prisma.timelineEvent.findMany({
+      where: { channelId: req.params.id },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: { select: { id: true, nickname: true, avatarSeed: true } },
+      },
+    });
+    res.json(events);
+  } catch (err) {
+    logger.error('Timeline fetch failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });
   }
 });

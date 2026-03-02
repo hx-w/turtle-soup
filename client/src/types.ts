@@ -1,5 +1,3 @@
-/* Shared TypeScript interfaces matching backend API responses */
-
 export interface User {
   id: string;
   nickname: string;
@@ -17,7 +15,7 @@ export interface ChannelMember {
   id: string;
   channelId: string;
   userId: string;
-  role: 'host' | 'player';
+  role: 'creator' | 'host' | 'player';
   joinedAt: string;
   becameHostAt: string | null;
   user: { id: string; nickname: string; avatarSeed: string };
@@ -29,8 +27,9 @@ export interface Question {
   askerId: string;
   content: string;
   status: 'pending' | 'answered' | 'withdrawn';
-  answer: 'yes' | 'no' | 'irrelevant' | null;
+  answer: 'yes' | 'no' | 'irrelevant' | 'partial' | null;
   answeredBy: string | null;
+  isKeyQuestion: boolean;
   createdAt: string;
   answeredAt: string | null;
   asker: { id: string; nickname: string; avatarSeed: string };
@@ -73,14 +72,28 @@ export interface PlayerAward {
   yes: number;
   no: number;
   irrelevant: number;
+  partial: number;
   total: number;
+}
+
+export interface HostContribution {
+  id: string;
+  nickname: string;
+  avatarSeed: string;
+  role: 'creator' | 'host';
+  answeredCount: number;
+  yesCount: number;
+  noCount: number;
+  keyQuestions: number;
 }
 
 export interface ChannelStats {
   totalQuestions: number;
-  distribution: { yes: number; no: number; irrelevant: number };
+  distribution: { yes: number; no: number; irrelevant: number; partial: number };
+  keyQuestionCount: number;
   playerCount: number;
-  hosts: { id: string; nickname: string; avatarSeed: string; becameHostAt: string | null }[];
+  hosts: { id: string; nickname: string; avatarSeed: string; role: 'creator' | 'host'; becameHostAt: string | null }[];
+  hostContributions: HostContribution[];
   duration: number | null;
   awards: {
     bestDetective: PlayerAward | null;
@@ -88,7 +101,6 @@ export interface ChannelStats {
     mostActive: PlayerAward | null;
     lastYes: Question | null;
   };
-  // Rating data
   averageRating?: number;
   ratingCount?: number;
   myRating?: { score: number; comment?: string } | null;
@@ -112,7 +124,7 @@ export interface UserStats {
   hosted: number;
   participated: number;
   totalQuestions: number;
-  distribution: { yes: number; no: number; irrelevant: number };
+  distribution: { yes: number; no: number; irrelevant: number; partial: number };
   hitRate: number;
 }
 
@@ -130,4 +142,26 @@ export interface RatingsResponse {
   ratings: Rating[];
   average: number;
   count: number;
+}
+
+export type EventType =
+  | 'channel_created'
+  | 'player_joined'
+  | 'first_question'
+  | 'question_asked'
+  | 'question_answered'
+  | 'key_question'
+  | 'role_changed'
+  | 'truth_revealed'
+  | 'channel_ended';
+
+export interface TimelineEvent {
+  id: string;
+  channelId: string;
+  type: EventType;
+  userId: string | null;
+  user: { id: string; nickname: string; avatarSeed: string } | null;
+  questionId: string | null;
+  metadata: Record<string, any> | null;
+  createdAt: string;
 }

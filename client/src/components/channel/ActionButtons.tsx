@@ -2,7 +2,7 @@ import { Eye, StopCircle, BarChart3 } from 'lucide-react';
 
 interface ActionButtonsProps {
   isActive: boolean;
-  myRole: string;
+  myRole: 'creator' | 'host' | 'player';
   truthText: string;
   channelEnded: boolean;
   onReveal: () => void;
@@ -21,6 +21,8 @@ export default function ActionButtons({
   onViewTruth,
   onViewStats,
 }: ActionButtonsProps) {
+  const isHostOrCreator = myRole === 'host' || myRole === 'creator';
+
   return (
     <div className="flex items-center gap-2 px-4 py-2 border-b border-border overflow-x-auto">
       {isActive && myRole === 'player' && (
@@ -36,7 +38,7 @@ export default function ActionButtons({
         </button>
       )}
 
-      {isActive && myRole === 'host' && (
+      {isActive && myRole === 'creator' && (
         <button
           onClick={onEnd}
           className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5
@@ -49,7 +51,7 @@ export default function ActionButtons({
         </button>
       )}
 
-      {myRole === 'host' && truthText && (
+      {isHostOrCreator && truthText && (
         <button
           onClick={onViewTruth}
           className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5

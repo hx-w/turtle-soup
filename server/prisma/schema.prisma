@@ -23,9 +23,11 @@ enum AnswerType {
   yes
   no
   irrelevant
+  partial
 }
 
 enum MemberRole {
+  creator
   host
   player
 }
@@ -37,18 +39,31 @@ enum Difficulty {
   hell
 }
 
+enum EventType {
+  channel_created
+  player_joined
+  first_question
+  question_asked
+  question_answered
+  key_question
+  role_changed
+  truth_revealed
+  channel_ended
+}
+
 model User {
-  id              String          @id @default(uuid())
-  nickname        String          @unique @db.VarChar(16)
+  id              String           @id @default(uuid())
+  nickname        String           @unique @db.VarChar(16)
   passwordHash    String
-  avatarSeed      String          @default(uuid())
-  createdAt       DateTime        @default(now())
+  avatarSeed      String           @default(uuid())
+  createdAt       DateTime         @default(now())
   channels        ChannelMember[]
-  questions       Question[]      @relation("asker")
-  answers         Question[]      @relation("answerer")
+  questions       Question[]       @relation("asker")
+  answers         Question[]       @relation("answerer")
   ratings         Rating[]
   createdChannels Channel[]
   chatMessages    ChatMessage[]
+  timelineEvents  TimelineEvent[]
 }
 
 model InviteCode {
@@ -60,22 +75,23 @@ model InviteCode {
 }
 
 model Channel {
-  id           String          @id @default(uuid())
-  title        String          @db.VarChar(50)
-  surface      String
-  truth        String
-  maxQuestions Int             @default(0)
-  status       ChannelStatus   @default(active)
-  difficulty   Difficulty      @default(medium)
-  tags         String[]        @default([])
-  creatorId    String
-  creator      User            @relation(fields: [creatorId], references: [id])
-  createdAt    DateTime        @default(now())
-  endedAt      DateTime?
-  members      ChannelMember[]
-  questions    Question[]
-  ratings      Rating[]
-  chatMessages ChatMessage[]
+  id             String           @id @default(uuid())
+  title          String           @db.VarChar(50)
+  surface        String
+  truth          String
+  maxQuestions   Int              @default(0)
+  status         ChannelStatus    @default(active)
+  difficulty     Difficulty       @default(medium)
+  tags           String[]         @default([])
+  creatorId      String
+  creator        User             @relation(fields: [creatorId], references: [id])
+  createdAt      DateTime         @default(now())
+  endedAt        DateTime?
+  members        ChannelMember[]
+  questions      Question[]
+  ratings        Rating[]
+  chatMessages   ChatMessage[]
+  timelineEvents TimelineEvent[]
 
   @@index([status])
   @@index([createdAt])
@@ -95,18 +111,19 @@ model ChannelMember {
 }
 
 model Question {
-  id         String    @id @default(uuid())
-  channelId  String
-  askerId    String
-  content    String
-  status     QuestionStatus @default(pending)
-  answer     AnswerType?
-  answeredBy String?
-  createdAt  DateTime  @default(now())
-  answeredAt DateTime?
-  channel    Channel   @relation(fields: [channelId], references: [id])
-  asker      User      @relation("asker", fields: [askerId], references: [id])
-  answerer   User?     @relation("answerer", fields: [answeredBy], references: [id])
+  id            String         @id @default(uuid())
+  channelId     String
+  askerId       String
+  content       String
+  status        QuestionStatus @default(pending)
+  answer        AnswerType?
+  answeredBy    String?
+  isKeyQuestion Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  answeredAt    DateTime?
+  channel       Channel        @relation(fields: [channelId], references: [id])
+  asker         User           @relation("asker", fields: [askerId], references: [id])
+  answerer      User?          @relation("answerer", fields: [answeredBy], references: [id])
 
   @@index([channelId, status])
 }
@@ -134,4 +151,19 @@ model ChatMessage {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([channelId, createdAt])
+}
+
+model TimelineEvent {
+  id         String      @id @default(uuid())
+  channelId  String
+  channel    Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  type       EventType
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
+  questionId String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([channelId, createdAt])
+  @@index([channelId, type])
 }

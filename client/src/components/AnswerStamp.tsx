@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { Check, X, Minus } from 'lucide-react';
+import { Check, X, Minus, CircleHalf, Target } from 'lucide-react';
 
 interface AnswerStampProps {
-  answer: 'yes' | 'no' | 'irrelevant';
+  answer: 'yes' | 'no' | 'irrelevant' | 'partial';
+  isKeyQuestion?: boolean;
 }
 
 const config = {
@@ -21,9 +22,14 @@ const config = {
     icon: Minus,
     classes: 'bg-irrelevant/20 text-irrelevant border-irrelevant',
   },
+  partial: {
+    label: '部分正确',
+    icon: CircleHalf,
+    classes: 'bg-amber-500/20 text-amber-400 border-amber-400',
+  },
 } as const;
 
-export default function AnswerStamp({ answer }: AnswerStampProps) {
+export default function AnswerStamp({ answer, isKeyQuestion }: AnswerStampProps) {
   const { label, icon: Icon, classes } = config[answer];
 
   return (
@@ -35,6 +41,7 @@ export default function AnswerStamp({ answer }: AnswerStampProps) {
     >
       <Icon className="w-4 h-4" strokeWidth={3} />
       <span>{label}</span>
+      {isKeyQuestion && <Target className="w-4 h-4 text-amber-400" />}
     </motion.div>
   );
 }
