@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Check, X, Minus, CircleHalf, Target } from 'lucide-react';
+import { Check, X, Minus, PieChart, Target } from 'lucide-react';
 
 interface AnswerStampProps {
   answer: 'yes' | 'no' | 'irrelevant' | 'partial';
@@ -24,7 +24,7 @@ const config = {
   },
   partial: {
     label: '部分正确',
-    icon: CircleHalf,
+    icon: PieChart,
     classes: 'bg-amber-500/20 text-amber-400 border-amber-400',
   },
 } as const;

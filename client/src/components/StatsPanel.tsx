@@ -7,7 +7,6 @@ import {
   Clock,
   HelpCircle,
   Star,
-  Users,
 } from 'lucide-react';
 import type { ChannelStats } from '../types';
 

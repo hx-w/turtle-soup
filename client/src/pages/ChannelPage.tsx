@@ -33,7 +33,7 @@ export default function ChannelPage() {
 
   const {
     channel, questions, myRole, loading, error, onlineUsers,
-    channelEnded, truthText, channelStats, showStats, setShowStats,
+    channelEnded, truthText, channelStats,
     loadStats, handleSubmitQuestion, handleWithdraw, handleAnswer,
     handleRevealTruth, handleEndChannel,
     addQuestion, markAnswered, removeQuestion,
@@ -54,11 +54,6 @@ export default function ChannelPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmReveal, setConfirmReveal] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
-  const [confirmAnswer, setConfirmAnswer] = useState<{
-    questionId: string;
-    answer: 'yes' | 'no' | 'irrelevant' | 'partial';
-    isKeyQuestion: boolean;
-  } | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -162,12 +157,6 @@ export default function ChannelPage() {
     }
   }
 
-  async function onConfirmAnswer() {
-    if (!confirmAnswer) return;
-    await handleAnswer(confirmAnswer.questionId, confirmAnswer.answer, confirmAnswer.isKeyQuestion);
-    setConfirmAnswer(null);
-  }
-
   // Loading / Error states
   if (loading) {
     return (
@@ -217,14 +206,7 @@ export default function ChannelPage() {
         onReveal={() => setConfirmReveal(true)}
         onEnd={() => setConfirmEnd(true)}
         onViewTruth={() => setShowTruth(true)}
-        onViewStats={async () => {
-          if (channelStats) {
-            setShowStats((s) => !s);
-          } else {
-            await loadStats();
-            setShowStats(true);
-          }
-        }}
+        onViewStats={loadStats}
       />
 
       {/* Tabs */}

@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, CircleHalf, Minus, Target, ChevronDown, Loader2 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
-import type { Question } from '../types';
+import { Check, X, PieChart, Minus, Target, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import type { Question } from '../../types';
 
 interface AnswerDrawerProps {
   pendingQuestions: Question[];
@@ -13,7 +13,7 @@ type AnswerType = 'yes' | 'no' | 'irrelevant' | 'partial';
 const answerConfig = {
   yes: { label: '是', icon: Check, color: 'bg-yes/15 border-yes text-yes active:bg-yes/30' },
   no: { label: '否', icon: X, color: 'bg-no/15 border-no text-no active:bg-no/30' },
-  partial: { label: '部分正确', icon: CircleHalf, color: 'bg-amber-500/15 border-amber-500 text-amber-400 active:bg-amber-500/30' },
+  partial: { label: '部分正确', icon: PieChart, color: 'bg-amber-500/15 border-amber-500 text-amber-400 active:bg-amber-500/30' },
   irrelevant: { label: '无关', icon: Minus, color: 'bg-irrelevant/15 border-irrelevant text-irrelevant active:bg-irrelevant/30' },
 };
 

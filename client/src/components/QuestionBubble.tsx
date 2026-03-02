@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { Undo2 } from 'lucide-react';
 import AnswerStamp from './AnswerStamp';
 import type { Question } from '../types';
 
