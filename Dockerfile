@@ -1,5 +1,6 @@
 # Stage 1: Build client
 FROM node:20-alpine AS client-build
+RUN npm config set registry https://registry.npmmirror.com
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
@@ -8,6 +9,7 @@ RUN npm run build
 
 # Stage 2: Build server
 FROM node:20-alpine AS server-build
+RUN npm config set registry https://registry.npmmirror.com
 WORKDIR /app/server
 COPY server/package*.json ./
 RUN npm ci
