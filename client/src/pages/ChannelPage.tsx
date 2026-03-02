@@ -197,9 +197,13 @@ export default function ChannelPage() {
         onReveal={() => setConfirmReveal(true)}
         onEnd={() => setConfirmEnd(true)}
         onViewTruth={() => setShowTruth(true)}
-        onViewStats={() => {
-          if (channelStats) setShowStats(true);
-          else loadStats();
+        onViewStats={async () => {
+          if (channelStats) {
+            setShowStats((s) => !s);
+          } else {
+            await loadStats();
+            setShowStats(true);
+          }
         }}
       />
 

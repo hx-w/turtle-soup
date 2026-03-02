@@ -37,7 +37,6 @@ export function useChannelData(
     try {
       const data = await api.get<ChannelStats>(`/channels/${channelId}/stats`);
       setChannelStats(data);
-      setShowStats(true);
     } catch {
       // Stats not critical
     }
