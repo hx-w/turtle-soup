@@ -59,11 +59,9 @@ export default function ChannelPage() {
   const [showEditSoup, setShowEditSoup] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const [showScrollFAB, setShowScrollFAB] = useState<'up' | 'down' | 'both' | 'none'>('none');
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
-  const scrollListenerRef = useRef<(() => void) | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const mutationObserverRef = useRef<MutationObserver | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const discussionRef = useRef<DiscussionPanelHandle>(null);
@@ -85,98 +83,54 @@ export default function ChannelPage() {
   const checkScrollState = useCallback(() => {
     const el = scrollElementRef.current;
     if (!el) {
-      setShowScrollFAB('none');
+      setCanScrollUp(false);
+      setCanScrollDown(false);
       return;
     }
     const { scrollTop, scrollHeight, clientHeight } = el;
-    const threshold = 60;
-    const canScroll = scrollHeight > clientHeight + threshold;
-    const atTop = scrollTop < threshold;
-    const atBottom = scrollHeight - scrollTop - clientHeight < threshold;
-
-    if (!canScroll) {
-      setShowScrollFAB('none');
-    } else if (atTop) {
-      setShowScrollFAB('down');
-    } else if (atBottom) {
-      setShowScrollFAB('up');
-    } else {
-      setShowScrollFAB('both');
-    }
+    const threshold = 80;
+    setCanScrollUp(scrollTop > threshold);
+    setCanScrollDown(scrollHeight - scrollTop - clientHeight > threshold);
   }, []);
 
-  useEffect(() => {
-    if (scrollElementRef.current && scrollListenerRef.current) {
-      scrollElementRef.current.removeEventListener('scroll', scrollListenerRef.current);
+  const bindScrollElement = useCallback((el: HTMLDivElement | null) => {
+    if (scrollElementRef.current) {
+      scrollElementRef.current.removeEventListener('scroll', checkScrollState);
     }
-    resizeObserverRef.current?.disconnect();
-    mutationObserverRef.current?.disconnect();
+    scrollElementRef.current = el;
 
-    const setupElement = (el: HTMLDivElement | null) => {
-      if (scrollElementRef.current && scrollListenerRef.current) {
-        scrollElementRef.current.removeEventListener('scroll', scrollListenerRef.current);
-      }
-      scrollElementRef.current = el;
+    if (el) {
+      el.addEventListener('scroll', checkScrollState, { passive: true });
+      requestAnimationFrame(checkScrollState);
+    } else {
+      setCanScrollUp(false);
+      setCanScrollDown(false);
+    }
+  }, [checkScrollState]);
 
-      if (!el) {
-        scrollListenerRef.current = null;
-        setShowScrollFAB('none');
-        return;
-      }
+  useEffect(() => {
+    let el: HTMLDivElement | null = null;
 
-      requestAnimationFrame(() => {
-        checkScrollState();
-      });
+    if (activeTab === 'qa') {
+      el = timelineRef.current;
+    } else if (activeTab === 'discussion') {
+      el = discussionRef.current?.scrollRef ?? null;
+    } else if (activeTab === 'hints') {
+      el = hintsRef.current?.scrollRef ?? null;
+    }
 
-      const onScroll = () => checkScrollState();
-      scrollListenerRef.current = onScroll;
-      el.addEventListener('scroll', onScroll, { passive: true });
-
-      resizeObserverRef.current = new ResizeObserver(() => checkScrollState());
-      resizeObserverRef.current.observe(el);
-
-      mutationObserverRef.current = new MutationObserver(() => checkScrollState());
-      mutationObserverRef.current.observe(el, { childList: true, subtree: true });
-    };
-
-    const getScrollEl = (): HTMLDivElement | null => {
-      if (activeTab === 'qa') return timelineRef.current;
-      if (activeTab === 'discussion') return discussionRef.current?.scrollRef ?? null;
-      if (activeTab === 'hints') return hintsRef.current?.scrollRef ?? null;
-      return null;
-    };
-
-    const el = getScrollEl();
-    setupElement(el);
-
-    const retryTimer = setTimeout(() => {
-      const retryEl = getScrollEl();
-      if (retryEl && retryEl !== scrollElementRef.current) {
-        setupElement(retryEl);
-      }
-    }, 50);
-
-    const retryTimer2 = setTimeout(() => {
-      const retryEl = getScrollEl();
-      if (retryEl && retryEl !== scrollElementRef.current) {
-        setupElement(retryEl);
-      }
-    }, 200);
+    bindScrollElement(el);
 
     return () => {
-      clearTimeout(retryTimer);
-      clearTimeout(retryTimer2);
-      if (scrollElementRef.current && scrollListenerRef.current) {
-        scrollElementRef.current.removeEventListener('scroll', scrollListenerRef.current);
+      if (scrollElementRef.current) {
+        scrollElementRef.current.removeEventListener('scroll', checkScrollState);
       }
-      resizeObserverRef.current?.disconnect();
-      mutationObserverRef.current?.disconnect();
     };
-  }, [activeTab, checkScrollState, channel]);
+  }, [activeTab, bindScrollElement, checkScrollState, discussion.messages.length, hints.length]);
 
   useEffect(() => {
     checkScrollState();
-  }, [questions.length, discussion.messages.length, hints.length, checkScrollState]);
+  }, [questions.length, checkScrollState]);
 
   const scrollToTop = useCallback(() => {
     scrollElementRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -306,6 +260,8 @@ export default function ChannelPage() {
     );
   }
 
+  const showScrollFAB = canScrollUp || canScrollDown;
+
   return (
     <div className="flex-1 min-h-0 bg-bg flex flex-col overflow-hidden">
       <ChannelHeader
@@ -427,39 +383,39 @@ export default function ChannelPage() {
       )}
 
       <AnimatePresence>
-        {showScrollFAB !== 'none' && (
+        {showScrollFAB && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
             transition={{ duration: 0.15 }}
             className="fixed right-3 z-30 flex flex-col gap-1.5
                        bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
           >
-            {(showScrollFAB === 'up' || showScrollFAB === 'both') && (
+            {canScrollUp && (
               <button
                 onClick={scrollToTop}
-                className="w-9 h-9 flex items-center justify-center
-                           bg-card border border-border rounded-lg
+                className="w-10 h-10 flex items-center justify-center
+                           bg-card border border-border rounded-xl
                            text-text-muted hover:text-primary hover:border-primary/30
                            active:scale-95 transition-all duration-150 cursor-pointer
                            shadow-sm"
                 aria-label="滚动到顶部"
               >
-                <ArrowUp className="w-4 h-4" />
+                <ArrowUp className="w-5 h-5" />
               </button>
             )}
-            {(showScrollFAB === 'down' || showScrollFAB === 'both') && (
+            {canScrollDown && (
               <button
                 onClick={scrollToBottom}
-                className="w-9 h-9 flex items-center justify-center
-                           bg-card border border-border rounded-lg
+                className="w-10 h-10 flex items-center justify-center
+                           bg-card border border-border rounded-xl
                            text-text-muted hover:text-primary hover:border-primary/30
                            active:scale-95 transition-all duration-150 cursor-pointer
                            shadow-sm"
                 aria-label="滚动到底部"
               >
-                <ArrowDown className="w-4 h-4" />
+                <ArrowDown className="w-5 h-5" />
               </button>
             )}
           </motion.div>
