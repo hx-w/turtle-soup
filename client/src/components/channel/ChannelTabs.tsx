@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { MessageSquare, HelpCircle } from 'lucide-react';
+import { MessageSquare, HelpCircle, Lightbulb } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-export type TabKey = 'qa' | 'discussion';
+export type TabKey = 'qa' | 'discussion' | 'hints';
 
 interface ChannelTabsProps {
   channelId?: string;
@@ -9,12 +10,14 @@ interface ChannelTabsProps {
   onTabChange: (tab: TabKey) => void;
   answeredCount: number;
   unreadCount: number;
+  aiHintEnabled?: boolean;
 }
 
-const tabs: { key: TabKey; label: string; icon: typeof HelpCircle }[] = [
-  { key: 'qa', label: '提问', icon: HelpCircle },
-  { key: 'discussion', label: '讨论', icon: MessageSquare },
-];
+interface TabDef {
+  key: TabKey;
+  label: string;
+  icon: LucideIcon;
+}
 
 export default function ChannelTabs({
   channelId,
@@ -22,7 +25,17 @@ export default function ChannelTabs({
   onTabChange,
   answeredCount,
   unreadCount,
+  aiHintEnabled = false,
 }: ChannelTabsProps) {
+  const tabs: TabDef[] = [
+    { key: 'qa', label: '提问', icon: HelpCircle },
+    { key: 'discussion', label: '讨论', icon: MessageSquare },
+  ];
+
+  if (aiHintEnabled) {
+    tabs.push({ key: 'hints', label: '线索', icon: Lightbulb });
+  }
+
   return (
     <div className="flex-shrink-0 flex border-b border-border bg-surface/40 relative">
       {tabs.map((tab) => {

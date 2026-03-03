@@ -49,6 +49,12 @@ enum EventType {
   role_changed
   truth_revealed
   channel_ended
+
+  // AI 相关
+  ai_answered
+  ai_answer_modified
+  hint_used
+  hint_shared
 }
 
 model User {
@@ -64,6 +70,7 @@ model User {
   createdChannels Channel[]
   chatMessages    ChatMessage[]
   timelineEvents  TimelineEvent[]
+  aiHints         AiHint[]
 }
 
 model InviteCode {
@@ -92,6 +99,15 @@ model Channel {
   ratings        Rating[]
   chatMessages   ChatMessage[]
   timelineEvents TimelineEvent[]
+
+  // AI 设置
+  aiHostEnabled       Boolean   @default(false)
+  aiHostDelayMinutes  Int       @default(1)
+  aiHintEnabled       Boolean   @default(false)
+  aiHintPerPlayer     Int       @default(3)
+  aiReview            String?
+  aiProgress          Float     @default(0)
+  aiHints             AiHint[]
 
   @@index([status])
   @@index([createdAt])
@@ -124,6 +140,9 @@ model Question {
   channel       Channel        @relation(fields: [channelId], references: [id])
   asker         User           @relation("asker", fields: [askerId], references: [id])
   answerer      User?          @relation("answerer", fields: [answeredBy], references: [id])
+
+  isAiAnswered    Boolean   @default(false)
+  aiReasoning     String?
 
   @@index([channelId, status])
 }
@@ -166,4 +185,17 @@ model TimelineEvent {
 
   @@index([channelId, createdAt])
   @@index([channelId, type])
+}
+
+model AiHint {
+  id          String   @id @default(uuid())
+  channelId   String
+  userId      String
+  content     String
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  channel     Channel  @relation(fields: [channelId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([channelId, userId])
 }

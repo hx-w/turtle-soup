@@ -9,6 +9,11 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh_secret}
       INITIAL_INVITE_CODE: ${INITIAL_INVITE_CODE:-TURTLE2024}
       NODE_ENV: production
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_REQUEST_TIMEOUT: ${AI_REQUEST_TIMEOUT:-15000}
     depends_on:
       postgres:
         condition: service_healthy

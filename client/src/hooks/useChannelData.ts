@@ -8,7 +8,7 @@ import {
   emitRoleChanged,
   emitChannelEnded,
 } from '../lib/socket';
-import type { Channel, ChannelMember, Question, ChannelStats } from '../types';
+import type { Channel, ChannelMember, Question, ChannelStats, AiHint, HintsResponse } from '../types';
 
 interface LocalOnlineUser {
   id: string;
@@ -31,6 +31,12 @@ export function useChannelData(
   const [truthText, setTruthText] = useState('');
   const [channelStats, setChannelStats] = useState<ChannelStats | null>(null);
   const [showStats, setShowStats] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiReview, setAiReview] = useState<string | null>(null);
+  const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [hints, setHints] = useState<AiHint[]>([]);
+  const [hintRemaining, setHintRemaining] = useState(0);
+  const [hintLoading, setHintLoading] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!channelId) return;
@@ -73,9 +79,24 @@ export function useChannelData(
           setTruthText(data.truth);
         }
 
+        // Initialize AI state
+        if (data.aiProgress) setAiProgress(data.aiProgress);
+        if (data.aiReview) setAiReview(data.aiReview);
+
         if (data.status === 'ended') {
           setChannelEnded(true);
           loadStats();
+        }
+
+        // Load hints quota if AI hints enabled and user is a player
+        const myMembership = data.members?.find((m: ChannelMember) => m.userId === user?.id);
+        if (data.aiHintEnabled && myMembership?.role === 'player') {
+          api.get<HintsResponse>(`/channels/${channelId}/hints`).then((hintsData) => {
+            setHints(hintsData.hints);
+            setHintRemaining(hintsData.myRemaining);
+          }).catch(() => {
+            // Hints not critical
+          });
         }
 
         setOnlineUsers(
@@ -259,6 +280,129 @@ export function useChannelData(
     setOnlineUsers(users);
   }, []);
 
+  // AI methods
+  const handleAiCorrect = useCallback(
+    async (qid: string, answer: string, isKey: boolean) => {
+      if (!channelId) return;
+      const updated = await api.put<Question>(
+        `/channels/${channelId}/questions/${qid}/ai-correct`,
+        { answer, isKeyQuestion: isKey },
+      );
+      setQuestions((prev) =>
+        prev.map((q) => (q.id === qid ? { ...q, ...updated } : q)),
+      );
+    },
+    [channelId],
+  );
+
+  const handleRequestHint = useCallback(async () => {
+    if (!channelId) return;
+    setHintLoading(true);
+    try {
+      const res = await api.post<{ hint: AiHint; remaining: number }>(
+        `/channels/${channelId}/hints`,
+      );
+      setHints((prev) => [...prev, res.hint]);
+      setHintRemaining(res.remaining);
+    } catch (err: any) {
+      toast.error(err?.message || '请求线索失败');
+    } finally {
+      setHintLoading(false);
+    }
+  }, [channelId]);
+
+  const handleToggleHintPublic = useCallback(
+    async (hintId: string, isPublic: boolean) => {
+      if (!channelId) return;
+      const updated = await api.put<AiHint>(
+        `/channels/${channelId}/hints/${hintId}/visibility`,
+        { isPublic },
+      );
+      setHints((prev) => prev.map((h) => (h.id === hintId ? { ...h, ...updated } : h)));
+    },
+    [channelId],
+  );
+
+  const loadHints = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      const data = await api.get<HintsResponse>(`/channels/${channelId}/hints`);
+      setHints(data.hints);
+      setHintRemaining(data.myRemaining);
+    } catch {
+      // Hints not critical
+    }
+  }, [channelId]);
+
+  const updateProgress = useCallback((progress: number) => {
+    setAiProgress(progress);
+  }, []);
+
+  // Socket callback: AI answered a question
+  const handleSocketAiAnswered = useCallback(
+    (data: { question: Question; channelId: string }) => {
+      const q = data.question;
+      setQuestions((prev) => {
+        const existing = prev.find((e) => e.id === q.id);
+        if (existing) {
+          return prev.map((e) => (e.id === q.id ? { ...e, ...q } : e));
+        }
+        return [...prev, q];
+      });
+    },
+    [],
+  );
+
+  const handleSocketAiCorrected = useCallback(
+    (data: { question: Question; channelId: string }) => {
+      const q = data.question;
+      setQuestions((prev) =>
+        prev.map((e) => (e.id === q.id ? { ...e, ...q } : e)),
+      );
+    },
+    [],
+  );
+
+  const handleSocketHintShared = useCallback(
+    (data: { hint: AiHint; channelId: string }) => {
+      setHints((prev) => {
+        if (prev.some((h) => h.id === data.hint.id)) {
+          return prev.map((h) => (h.id === data.hint.id ? data.hint : h));
+        }
+        return [...prev, data.hint];
+      });
+    },
+    [],
+  );
+
+  // Refresh all channel data (used on visibility restore after mobile screen-off)
+  const refreshData = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      const data = await api.get<Channel>(`/channels/${channelId}`);
+      setChannel(data);
+      setQuestions(data.questions ?? []);
+
+      const updatedMembership = data.members?.find(
+        (m: ChannelMember) => m.userId === user?.id,
+      );
+      if (updatedMembership) {
+        setMyRole(updatedMembership.role);
+      }
+
+      if (data.truth) {
+        setTruthText(data.truth);
+      }
+
+      if (data.status === 'ended' && !channelEnded) {
+        setChannelEnded(true);
+        loadStats();
+      }
+    } catch {
+      // Non-critical, silently fail
+    }
+  }, [channelId, user?.id, channelEnded, loadStats]);
+
   return {
     channel,
     questions,
@@ -284,5 +428,25 @@ export function useChannelData(
     handleSocketRoleChanged,
     handleSocketChannelEnded,
     updateOnlineUsers,
+    // AI state
+    aiProgress,
+    aiReview,
+    setAiReview,
+    aiReviewLoading,
+    setAiReviewLoading,
+    hints,
+    hintRemaining,
+    hintLoading,
+    // AI methods
+    handleAiCorrect,
+    handleRequestHint,
+    handleToggleHintPublic,
+    loadHints,
+    updateProgress,
+    // AI socket callbacks
+    handleSocketAiAnswered,
+    handleSocketAiCorrected,
+    handleSocketHintShared,
+    refreshData,
   };
 }

@@ -4,7 +4,7 @@ import {
   joinChannel as socketJoinChannel,
   leaveChannel as socketLeaveChannel,
 } from '../lib/socket';
-import type { Question, ChatMessage } from '../types';
+import type { Question, ChatMessage, AiHint } from '../types';
 
 interface LocalOnlineUser {
   id: string;
@@ -27,6 +27,12 @@ interface UseChannelSocketCallbacks {
   onChannelEnded: (truth?: string) => void;
   onOnlineUsersUpdate: (users: LocalOnlineUser[]) => void;
   onNewChatMessage?: (message: ChatMessage) => void;
+  onAiAnswered?: (data: { question: Question; channelId: string }) => void;
+  onAiCorrected?: (data: { question: Question; channelId: string; modifiedBy: string }) => void;
+  onHintShared?: (data: { hint: AiHint; channelId: string }) => void;
+  onProgressUpdated?: (data: { channelId: string; progress: number }) => void;
+  onAiReviewReady?: (data: { channelId: string; review: string }) => void;
+  onVisibilityRestore?: () => void;
 }
 
 export function useChannelSocket(
@@ -104,6 +110,43 @@ export function useChannelSocket(
       callbacks.onNewChatMessage?.(msg);
     }
 
+    function handleAiAnswered(data: any) {
+      if (data.channelId && data.channelId !== channelId) return;
+      callbacks.onAiAnswered?.(data);
+    }
+
+    function handleAiCorrected(data: any) {
+      if (data.channelId && data.channelId !== channelId) return;
+      callbacks.onAiCorrected?.(data);
+    }
+
+    function handleHintShared(data: any) {
+      if (data.channelId && data.channelId !== channelId) return;
+      callbacks.onHintShared?.(data);
+    }
+
+    function handleProgressUpdated(data: any) {
+      if (data.channelId && data.channelId !== channelId) return;
+      callbacks.onProgressUpdated?.(data);
+    }
+
+    function handleAiReviewReady(data: any) {
+      if (data.channelId && data.channelId !== channelId) return;
+      callbacks.onAiReviewReady?.(data);
+    }
+
+    // Re-sync data when page becomes visible (mobile screen-off recovery)
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        if (!s.connected) {
+          s.connect();
+        }
+        socketJoinChannel(channelId!);
+        callbacks.onVisibilityRestore?.();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     s.on('question:new', handleNewQuestion);
     s.on('question:answered', handleAnswered);
     s.on('question:withdrawn', handleWithdrawn);
@@ -112,8 +155,14 @@ export function useChannelSocket(
     s.on('channel:user_joined', handleUserJoined);
     s.on('channel:user_left', handleUserLeft);
     s.on('chat:new', handleNewChat);
+    s.on('question:ai_answered', handleAiAnswered);
+    s.on('question:ai_corrected', handleAiCorrected);
+    s.on('hint:shared', handleHintShared);
+    s.on('progress:updated', handleProgressUpdated);
+    s.on('ai:review_ready', handleAiReviewReady);
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       socketLeaveChannel(channelId);
       s.off('question:new', handleNewQuestion);
       s.off('question:answered', handleAnswered);
@@ -123,6 +172,11 @@ export function useChannelSocket(
       s.off('channel:user_joined', handleUserJoined);
       s.off('channel:user_left', handleUserLeft);
       s.off('chat:new', handleNewChat);
+      s.off('question:ai_answered', handleAiAnswered);
+      s.off('question:ai_corrected', handleAiCorrected);
+      s.off('hint:shared', handleHintShared);
+      s.off('progress:updated', handleProgressUpdated);
+      s.off('ai:review_ready', handleAiReviewReady);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, userId]);

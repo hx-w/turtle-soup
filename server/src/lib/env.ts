@@ -8,6 +8,11 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().optional(),
   INITIAL_INVITE_CODE: z.string().default('TURTLE2024'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  AI_PROVIDER: z.string().optional(),
+  AI_BASE_URL: z.string().optional(),
+  AI_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().optional(),
+  AI_REQUEST_TIMEOUT: z.coerce.number().default(15000),
 });
 
 function loadEnv() {

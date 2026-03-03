@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Type,
@@ -12,6 +12,7 @@ import {
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import type { Channel } from '../types';
+import AiSettingsPanel from '../components/ai/AiSettingsPanel';
 
 const difficultyOptions = [
   { value: 'easy', label: '简单' },
@@ -32,6 +33,17 @@ export default function CreatePage() {
   const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
+  const [aiHostEnabled, setAiHostEnabled] = useState(false);
+  const [aiHostDelayMinutes, setAiHostDelayMinutes] = useState(1);
+  const [aiHintEnabled, setAiHintEnabled] = useState(false);
+  const [aiHintPerPlayer, setAiHintPerPlayer] = useState(3);
+
+  useEffect(() => {
+    api.get<{ available: boolean }>('/ai/status')
+      .then((data) => setAiAvailable(data.available))
+      .catch(() => setAiAvailable(false));
+  }, []);
 
   const toggleTag = (tag: string) => {
     setTags((prev) =>
@@ -52,6 +64,10 @@ export default function CreatePage() {
         maxQuestions: maxQuestions || 0,
         difficulty,
         tags,
+        aiHostEnabled,
+        aiHostDelayMinutes,
+        aiHintEnabled,
+        aiHintPerPlayer,
       });
       navigate(`/channel/${channel.id}`, { replace: true });
     } catch (err) {
@@ -227,6 +243,23 @@ export default function CreatePage() {
                 ))}
               </div>
             </div>
+
+            {/* AI Settings */}
+            <AiSettingsPanel
+              aiAvailable={aiAvailable}
+              aiHostEnabled={aiHostEnabled}
+              aiHostDelayMinutes={aiHostDelayMinutes}
+              aiHintEnabled={aiHintEnabled}
+              aiHintPerPlayer={aiHintPerPlayer}
+              onChange={(field, value) => {
+                switch (field) {
+                  case 'aiHostEnabled': setAiHostEnabled(value as boolean); break;
+                  case 'aiHostDelayMinutes': setAiHostDelayMinutes(value as number); break;
+                  case 'aiHintEnabled': setAiHintEnabled(value as boolean); break;
+                  case 'aiHintPerPlayer': setAiHintPerPlayer(value as number); break;
+                }
+              }}
+            />
 
             {/* Submit */}
             <button

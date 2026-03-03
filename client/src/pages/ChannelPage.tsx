@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import { Loader2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Loader2, AlertTriangle, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
+import AiProgressBar from '../components/ai/AiProgressBar';
+import HintsPanel from '../components/ai/HintsPanel';
 import { toast } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import { useChannelData } from '../hooks/useChannelData';
@@ -14,6 +16,7 @@ import ChannelTabs from '../components/channel/ChannelTabs';
 import type { TabKey } from '../components/channel/ChannelTabs';
 import PlayerInputPanel from '../components/channel/PlayerInputPanel';
 import DiscussionPanel from '../components/channel/DiscussionPanel';
+import type { DiscussionPanelHandle } from '../components/channel/DiscussionPanel';
 import ChatInput from '../components/channel/ChatInput';
 import ConfirmDialog from '../components/ConfirmDialog';
 import QuestionBubble from '../components/QuestionBubble';
@@ -33,6 +36,13 @@ export default function ChannelPage() {
     handleRevealTruth, handleEndChannel,
     addQuestion, markAnswered, removeQuestion,
     handleSocketRoleChanged, handleSocketChannelEnded, updateOnlineUsers,
+    // AI
+    aiProgress, aiReview, setAiReview, aiReviewLoading, setAiReviewLoading,
+    hints, hintRemaining, hintLoading,
+    handleAiCorrect, handleRequestHint, handleToggleHintPublic, loadHints,
+    updateProgress,
+    handleSocketAiAnswered, handleSocketAiCorrected, handleSocketHintShared,
+    refreshData,
   } = useChannelData(channelId, user);
 
   const discussion = useDiscussion(channelId);
@@ -47,7 +57,12 @@ export default function ChannelPage() {
   const [confirmReveal, setConfirmReveal] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
+  // Scroll FAB state
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
   const timelineRef = useRef<HTMLDivElement>(null);
+  const discussionRef = useRef<DiscussionPanelHandle>(null);
 
   // Derived
   const answeredCount = questions.filter((q) => q.status === 'answered').length;
@@ -69,6 +84,49 @@ export default function ChannelPage() {
     scrollToBottom();
   }, [questions, scrollToBottom]);
 
+  // Scroll FAB: track scroll position
+  const handleScroll = useCallback(() => {
+    const el =
+      activeTab === 'qa'
+        ? timelineRef.current
+        : discussionRef.current?.scrollRef;
+    if (!el) {
+      setShowScrollTop(false);
+      setShowScrollBottom(false);
+      return;
+    }
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    setShowScrollTop(scrollTop > 200);
+    setShowScrollBottom(scrollHeight - scrollTop - clientHeight > 200);
+  }, [activeTab]);
+
+  useEffect(() => {
+    const el =
+      activeTab === 'qa'
+        ? timelineRef.current
+        : discussionRef.current?.scrollRef;
+    if (!el) return;
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [activeTab, handleScroll, questions.length, discussion.messages.length]);
+
+  const scrollToTopFAB = useCallback(() => {
+    const el =
+      activeTab === 'qa'
+        ? timelineRef.current
+        : discussionRef.current?.scrollRef;
+    el?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
+
+  const scrollToBottomFAB = useCallback(() => {
+    const el =
+      activeTab === 'qa'
+        ? timelineRef.current
+        : discussionRef.current?.scrollRef;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [activeTab]);
+
   // Load discussion messages when tab is first opened
   const handleTabChange = useCallback(
     (tab: TabKey) => {
@@ -78,6 +136,9 @@ export default function ChannelPage() {
         if (!discussion.initialLoaded) {
           discussion.fetchMessages();
         }
+      }
+      if (tab === 'hints') {
+        loadHints();
       }
     },
     [discussion],
@@ -100,6 +161,20 @@ export default function ChannelPage() {
       discussion.addMessage(msg);
       if (activeTab !== 'discussion') {
         discussion.incrementUnread();
+      }
+    },
+    onAiAnswered: handleSocketAiAnswered,
+    onAiCorrected: handleSocketAiCorrected,
+    onHintShared: handleSocketHintShared,
+    onProgressUpdated: (data) => updateProgress(data.progress),
+    onAiReviewReady: (data) => {
+      setAiReview(data.review);
+      setAiReviewLoading(false);
+    },
+    onVisibilityRestore: () => {
+      refreshData();
+      if (discussion.initialLoaded) {
+        discussion.refreshLatest();
       }
     },
   });
@@ -190,6 +265,11 @@ export default function ChannelPage() {
         }}
       />
 
+      {/* AI Progress Bar */}
+      {(channel.aiHostEnabled || channel.aiHintEnabled) && (
+        <AiProgressBar progress={aiProgress} frozen={channelEnded} />
+      )}
+
       {/* Tabs */}
       <ChannelTabs
         channelId={channel.id}
@@ -197,10 +277,23 @@ export default function ChannelPage() {
         onTabChange={handleTabChange}
         answeredCount={answeredCount}
         unreadCount={discussion.unreadCount}
+        aiHintEnabled={channel.aiHintEnabled}
       />
 
       {/* Tab Content */}
-      {activeTab === 'qa' ? (
+      {activeTab === 'hints' ? (
+        <div className="flex-1 min-h-0">
+<HintsPanel
+            hints={hints}
+            myRemaining={hintRemaining}
+            hintLoading={hintLoading}
+            currentUserId={user?.id ?? ''}
+            channelEnded={channelEnded}
+            onRequestHint={handleRequestHint}
+            onTogglePublic={handleToggleHintPublic}
+          />
+        </div>
+      ) : activeTab === 'qa' ? (
         <div className="flex-1 min-h-0 flex flex-col">
           {/* Question Timeline */}
           <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto py-3 space-y-1 overscroll-none">
@@ -221,11 +314,12 @@ export default function ChannelPage() {
                   isHost={isHostOrCreator}
                   onWithdraw={isActive ? handleWithdraw : undefined}
                   onAnswer={isActive && isHostOrCreator ? handleAnswer : undefined}
+                  onAiCorrect={isHostOrCreator ? handleAiCorrect : undefined}
                 />
               ))}
           </div>
 
-          {isActive && myRole === 'player' ? (
+          {isActive && !isHostOrCreator ? (
             <PlayerInputPanel
               hasPending={hasPending}
               questionText={questionText}
@@ -245,32 +339,80 @@ export default function ChannelPage() {
         <div className="flex-1 min-h-0 flex flex-col">
           {/* Discussion */}
           <DiscussionPanel
+            ref={discussionRef}
             messages={discussion.messages}
             currentUserId={user?.id}
             hasMore={discussion.hasMore}
             loading={discussion.loading}
             onLoadMore={discussion.loadMore}
+            endedAt={channel.endedAt}
           />
 
           {/* Chat Input */}
           <ChatInput
             isHost={isHostOrCreator}
             isActive={isActive}
+            channelEnded={channelEnded}
             onSend={discussion.sendMessage}
           />
         </div>
       )}
 
 
+      {/* Floating scroll buttons */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            key="scroll-top"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={scrollToTopFAB}
+            className="fixed right-4 z-30 w-10 h-10 flex items-center justify-center
+                       bg-card/90 backdrop-blur-xl border border-border rounded-full shadow-lg
+                       text-text-muted hover:text-text transition-colors duration-200 cursor-pointer
+                       touch-manipulation"
+            style={{ bottom: showScrollBottom ? 'calc(7rem + env(safe-area-inset-bottom, 0px))' : 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+            aria-label="滚动到顶部"
+          >
+            <ChevronUp className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showScrollBottom && (
+          <motion.button
+            key="scroll-bottom"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={scrollToBottomFAB}
+            className="fixed right-4 z-30 w-10 h-10 flex items-center justify-center
+                       bg-card/90 backdrop-blur-xl border border-border rounded-full shadow-lg
+                       text-text-muted hover:text-text transition-colors duration-200 cursor-pointer
+                       touch-manipulation"
+            style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+            aria-label="滚动到底部"
+          >
+            <ChevronDown className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Overlays / Modals */}
       <AnimatePresence>
         {showStatsModal && channelId && (
-          <StatsModal
+<StatsModal
             channelId={channelId}
             stats={channelStats}
-            myRole={myRole}
+            canRate={myRole === 'host' || myRole === 'player'}
             onClose={() => setShowStatsModal(false)}
             onStatsReload={loadStats}
+            aiReview={aiReview}
+            aiReviewLoading={aiReviewLoading}
+            currentNickname={user?.nickname ?? ''}
           />
         )}
       </AnimatePresence>

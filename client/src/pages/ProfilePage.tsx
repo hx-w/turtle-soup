@@ -127,7 +127,8 @@ export default function ProfilePage() {
   const total =
     stats.distribution.yes +
     stats.distribution.no +
-    stats.distribution.irrelevant;
+    stats.distribution.irrelevant +
+    (stats.distribution.partial ?? 0);
   const channels =
     activeTab === 'creator' ? creatorChannels :
     activeTab === 'host' ? hostChannels :
@@ -249,6 +250,16 @@ export default function ProfilePage() {
                   className="bg-no"
                 />
               )}
+              {(stats.distribution.partial ?? 0) > 0 && (
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{
+                    width: `${((stats.distribution.partial ?? 0) / total) * 100}%`,
+                  }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                  className="bg-orange-500"
+                />
+              )}
               {stats.distribution.irrelevant > 0 && (
                 <motion.div
                   initial={{ width: 0 }}
@@ -257,13 +268,13 @@ export default function ProfilePage() {
                       (stats.distribution.irrelevant / total) * 100
                     }%`,
                   }}
-                  transition={{ duration: 0.6, delay: 0.6 }}
+                  transition={{ duration: 0.6, delay: 0.7 }}
                   className="bg-irrelevant"
                 />
               )}
             </div>
 
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <span className="flex items-center gap-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-yes" />
                 <span className="text-text-muted">
@@ -274,6 +285,12 @@ export default function ProfilePage() {
                 <span className="w-2.5 h-2.5 rounded-full bg-no" />
                 <span className="text-text-muted">
                   否 {stats.distribution.no}
+                </span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                <span className="text-text-muted">
+                  部分 {stats.distribution.partial ?? 0}
                 </span>
               </span>
               <span className="flex items-center gap-1">

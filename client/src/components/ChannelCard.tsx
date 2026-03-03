@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Users, MessageCircle, Clock } from 'lucide-react';
+import { Users, MessageCircle, Clock, Star } from 'lucide-react';
 import type { Channel } from '../types';
 import Avatar from './Avatar';
 
@@ -46,11 +46,12 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
                  hover:scale-[1.01] group ${isEnded ? 'opacity-75' : ''}`}
       aria-label={`进入房间: ${channel.title}`}
     >
-      {/* Title */}
-      <div className="flex items-center gap-2">
+      {/* Title + badges */}
+      <div className="flex items-center gap-1.5">
         <h3 className="font-heading font-semibold text-base text-text group-hover:text-primary-light transition-colors duration-200 line-clamp-1 flex-1 min-w-0">
           {channel.title}
         </h3>
+        <span className={`flex-shrink-0 badge ${diff.color}`}>{diff.label}</span>
         <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full ${
           isEnded
             ? 'bg-text-muted/15 text-text-muted'
@@ -65,9 +66,20 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
         {channel.surface}
       </p>
 
+      {/* Rating row (ended channels only) */}
+      {isEnded && channel.averageRating != null && channel.averageRating > 0 && (
+        <div className="flex items-center gap-1 mt-2">
+          <Star size={13} className="fill-accent text-accent" />
+          <span className="text-accent text-sm font-medium">{channel.averageRating.toFixed(1)}</span>
+          {channel.ratingCount != null && channel.ratingCount > 0 && (
+            <span className="text-text-muted text-xs ml-0.5">({channel.ratingCount}人评分)</span>
+          )}
+        </div>
+      )}
+
       {/* Progress bar (only if maxQuestions > 0) */}
       {maxQ > 0 && (
-        <div className="mt-3">
+        <div className="mt-2.5">
           <div className="w-full h-1.5 bg-border/60 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500 ease-out"
@@ -80,9 +92,6 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
       {/* Bottom row */}
       <div className="flex items-center justify-between mt-3 gap-2">
         <div className="flex items-center gap-3 text-xs text-text-muted">
-          {/* Difficulty badge */}
-          <span className={`badge ${diff.color}`}>{diff.label}</span>
-
           {/* Player count */}
           <span className="flex items-center gap-1">
             <Users size={13} />

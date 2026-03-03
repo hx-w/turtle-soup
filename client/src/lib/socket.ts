@@ -106,3 +106,16 @@ export function emitChannelEnded(data: { channelId: string }) {
 export function emitChatNew(data: { channelId: string; message: unknown }) {
   socket.emit(SocketEvents.CHAT_NEW, data);
 }
+
+// Auto-reconnect when page becomes visible after being hidden (mobile screen-off)
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && socket && !socket.connected) {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        socket.auth = { token };
+        socket.connect();
+      }
+    }
+  });
+}

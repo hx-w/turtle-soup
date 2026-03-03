@@ -34,6 +34,8 @@ export interface Question {
   answeredAt: string | null;
   asker: { id: string; nickname: string; avatarSeed: string };
   answerer?: { id: string; nickname: string } | null;
+  isAiAnswered: boolean;
+  aiReasoning?: string | null;
 }
 
 export interface Channel {
@@ -52,6 +54,14 @@ export interface Channel {
   members?: ChannelMember[];
   questions?: Question[];
   _count?: { members: number; questions: number };
+  aiHostEnabled: boolean;
+  aiHostDelayMinutes: number;
+  aiHintEnabled: boolean;
+  aiHintPerPlayer: number;
+  aiReview: string | null;
+  aiProgress: number;
+  averageRating?: number | null;
+  ratingCount?: number;
 }
 
 export interface ChannelListResponse {
@@ -104,6 +114,7 @@ export interface ChannelStats {
   averageRating?: number;
   ratingCount?: number;
   myRating?: { score: number; comment?: string } | null;
+  aiReview?: string | null;
 }
 
 export interface ChatMessage {
@@ -154,7 +165,26 @@ export type EventType =
   | 'key_question'
   | 'role_changed'
   | 'truth_revealed'
-  | 'channel_ended';
+  | 'channel_ended'
+  | 'ai_answered'
+  | 'ai_answer_modified'
+  | 'hint_used'
+  | 'hint_shared';
+
+export interface AiHint {
+  id: string;
+  channelId: string;
+  userId: string;
+  content: string;
+  isPublic: boolean;
+  createdAt: string;
+  user: { id: string; nickname: string; avatarSeed: string };
+}
+
+export interface HintsResponse {
+  hints: AiHint[];
+  myRemaining: number;
+}
 
 export interface TimelineEvent {
   id: string;

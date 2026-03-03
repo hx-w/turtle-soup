@@ -15,4 +15,11 @@ export const SocketEvents = {
   QUESTION_WITHDRAWN: 'question:withdrawn',
   ROLE_CHANGED: 'role:changed',
   CHAT_NEW: 'chat:new',
+
+  // AI events
+  QUESTION_AI_ANSWERED: 'question:ai_answered',
+  QUESTION_AI_CORRECTED: 'question:ai_corrected',
+  HINT_SHARED: 'hint:shared',
+  PROGRESS_UPDATED: 'progress:updated',
+  AI_REVIEW_READY: 'ai:review_ready',
 } as const;

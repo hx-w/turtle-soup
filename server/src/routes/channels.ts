@@ -8,6 +8,9 @@ import { logger } from '../lib/logger';
 import { getIO } from '../socket';
 import { SocketEvents } from '../constants';
 import { TimelineService } from '../services/timeline';
+import { scheduleAiAnswer, cancelAiAnswer } from '../services/ai/scheduler';
+import { evaluateProgress } from '../services/ai/progress';
+import { generateReview } from '../services/ai/review';
 
 type Request = ExpressRequest<Record<string, string>>;
 
@@ -20,6 +23,10 @@ const createSchema = z.object({
   maxQuestions: z.number().int().min(0).default(0),
   difficulty: z.enum(['easy', 'medium', 'hard', 'hell']).default('medium'),
   tags: z.array(z.string()).default([]),
+  aiHostEnabled: z.boolean().default(false),
+  aiHostDelayMinutes: z.number().int().min(1).max(30).default(1),
+  aiHintEnabled: z.boolean().default(false),
+  aiHintPerPlayer: z.number().int().min(1).max(10).default(3),
 });
 
 const answerSchema = z.object({
@@ -113,6 +120,7 @@ router.get('/', async (req: Request, res: Response) => {
         select: {
           id: true, title: true, surface: true, maxQuestions: true, status: true,
           difficulty: true, tags: true, createdAt: true, endedAt: true,
+          creatorId: true,
           creator: { select: { id: true, nickname: true, avatarSeed: true } },
           _count: { select: { members: true, questions: { where: { status: 'answered' } } } },
         },
@@ -120,7 +128,27 @@ router.get('/', async (req: Request, res: Response) => {
       prisma.channel.count({ where }),
     ]);
 
-    res.json({ channels, total, page: Number(page), totalPages: Math.ceil(total / take) });
+    // Batch-fetch average ratings for ended channels
+    const endedIds = channels.filter(c => c.status === 'ended').map(c => c.id);
+    const ratingAggs = endedIds.length > 0
+      ? await prisma.rating.groupBy({
+          by: ['channelId'],
+          where: { channelId: { in: endedIds } },
+          _avg: { score: true },
+          _count: { score: true },
+        })
+      : [];
+    const ratingMap = new Map(ratingAggs.map(r => [r.channelId, {
+      averageRating: r._avg.score ? Math.round(r._avg.score * 10) / 10 : null,
+      ratingCount: r._count.score,
+    }]));
+
+    const channelsWithRatings = channels.map(c => ({
+      ...c,
+      ...(ratingMap.get(c.id) ?? { averageRating: null, ratingCount: 0 }),
+    }));
+
+    res.json({ channels: channelsWithRatings, total, page: Number(page), totalPages: Math.ceil(total / take) });
   } catch (err) {
     logger.error('Channel listing failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });
@@ -154,6 +182,16 @@ router.get('/:id', authRequired, async (req: Request, res: Response) => {
     // Only show truth to hosts or if channel ended
     const member = channel.members.find(m => m.userId === req.user!.userId);
     const isHostOrCreator = member?.role === 'host' || member?.role === 'creator';
+
+    // Strip aiReasoning for non-hosts
+    if (!isHostOrCreator) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      channel.questions = channel.questions.map((q: any) => {
+        const { aiReasoning: _, ...rest } = q;
+        return rest;
+      });
+    }
+
     if (!isHostOrCreator && channel.status === 'active') {
       const { truth: _truth, ...channelWithoutTruth } = channel;
       res.json(channelWithoutTruth);
@@ -247,6 +285,11 @@ router.post('/:id/questions', authRequired, validate(questionSchema), async (req
       await TimelineService.questionAsked(channelId, userId, question.id);
     }
 
+    // Schedule AI auto-answer if enabled
+    if (channel.aiHostEnabled) {
+      scheduleAiAnswer(question.id, channelId, channel.aiHostDelayMinutes * 60 * 1000);
+    }
+
     res.json(question);
   } catch (err) {
     logger.error('Question submission failed', { error: String(err) });
@@ -260,6 +303,8 @@ router.put('/:id/questions/:qid/answer', authRequired, validate(answerSchema), a
     const { answer, isKeyQuestion } = req.body;
     const { id: channelId, qid } = req.params;
     const userId = req.user!.userId;
+
+    cancelAiAnswer(qid);
 
     const member = await prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId } },
@@ -303,6 +348,14 @@ router.put('/:id/questions/:qid/answer', authRequired, validate(answerSchema), a
     }
 
     const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+
+    // Async progress evaluation (only if game is still active)
+    if (channel && channel.status === 'active' && (channel.aiHostEnabled || channel.aiHintEnabled)) {
+      evaluateProgress(channelId, channel.aiProgress).then((progress) => {
+        const io = getIO();
+        io.to(channelId).emit(SocketEvents.PROGRESS_UPDATED, { channelId, progress });
+      });
+    }
     if (channel && channel.maxQuestions > 0) {
       const answeredCount = await prisma.question.count({
         where: { channelId, status: 'answered' },
@@ -415,6 +468,14 @@ router.post('/:id/end', authRequired, async (req: Request, res: Response) => {
 
     await TimelineService.channelEnded(channelId, answeredCount);
 
+    // Async AI review generation
+    generateReview(channelId).then((review) => {
+      if (review) {
+        const io = getIO();
+        io.to(channelId).emit(SocketEvents.AI_REVIEW_READY, { channelId, review });
+      }
+    }).catch((err) => logger.warn('AI review generation failed', { channelId, error: String(err) }));
+
     res.json(channel);
   } catch (err) {
     logger.error('Channel end failed', { error: String(err) });
@@ -516,6 +577,7 @@ router.get('/:id/stats', authRequired, async (req: Request, res: Response) => {
       averageRating,
       ratingCount: ratings.length,
       myRating: myRating ? { score: myRating.score, comment: myRating.comment ?? undefined } : null,
+      aiReview: channel.aiReview ?? null,
     });
   } catch (err) {
     logger.error('Channel stats fetch failed', { error: String(err) });
@@ -536,7 +598,7 @@ router.post('/:id/ratings', authRequired, validate(ratingSchema), async (req: Re
       return;
     }
 
-    // Check membership
+    // Check membership - only hosts and players can rate (not creator)
     const member = await prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId } },
     });
@@ -544,11 +606,10 @@ router.post('/:id/ratings', authRequired, validate(ratingSchema), async (req: Re
       res.status(403).json({ error: '只有参与者可以评分' });
       return;
     }
-    if (channel.creatorId === userId) {
-      res.status(403).json({ error: '主持人不能给自己评分' });
+    if (member.role === 'creator') {
+      res.status(403).json({ error: '创建者不能给自己评分' });
       return;
     }
-
     const rating = await prisma.rating.upsert({
       where: { channelId_userId: { channelId, userId } },
       update: { score, comment },
@@ -622,7 +683,7 @@ router.post('/:id/chat', authRequired, validate(chatSchema), async (req: Request
     const userId = req.user!.userId;
 
     const channel = await prisma.channel.findUnique({ where: { id: channelId } });
-    if (!channel || channel.status !== 'active') {
+    if (!channel || (channel.status !== 'active' && channel.status !== 'ended')) {
       res.status(400).json({ error: 'Channel 不可用' });
       return;
     }
@@ -634,8 +695,10 @@ router.post('/:id/chat', authRequired, validate(chatSchema), async (req: Request
       res.status(403).json({ error: '你不是该频道的成员' });
       return;
     }
-    if (member.role === 'host' || member.role === 'creator') {
-      res.status(403).json({ error: '主持人不能在讨论区发言' });
+
+    // During active game: only players can chat. After game ends: everyone can chat.
+    if (channel.status === 'active' && (member.role === 'host' || member.role === 'creator')) {
+      res.status(403).json({ error: '游戏进行中主持人不能在讨论区发言' });
       return;
     }
 
@@ -669,5 +732,189 @@ router.get('/:id/timeline', authRequired, async (req: Request, res: Response) =>
     res.status(500).json({ error: '服务器错误' });
   }
 });
+
+// Correct AI answer
+const aiCorrectSchema = z.object({
+  answer: z.enum(['yes', 'no', 'irrelevant', 'partial']),
+  isKeyQuestion: z.boolean().optional().default(false),
+});
+
+router.put('/:id/questions/:qid/ai-correct', authRequired, validate(aiCorrectSchema), async (req: Request, res: Response) => {
+  try {
+    const { answer, isKeyQuestion } = req.body;
+    const { id: channelId, qid } = req.params;
+    const userId = req.user!.userId;
+
+    const member = await prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+    });
+    if (!member || (member.role !== 'host' && member.role !== 'creator')) {
+      res.status(403).json({ error: '只有主持人可以修改' });
+      return;
+    }
+
+    const question = await prisma.question.findUnique({ where: { id: qid } });
+    if (!question || question.channelId !== channelId || !question.isAiAnswered) {
+      res.status(400).json({ error: '只能修改 AI 的回答' });
+      return;
+    }
+
+    const canMarkKey = isKeyQuestion && (answer === 'yes' || answer === 'no');
+
+    const updated = await prisma.question.update({
+      where: { id: qid },
+      data: { answer, isKeyQuestion: canMarkKey },
+      include: {
+        asker: { select: { id: true, nickname: true, avatarSeed: true } },
+        answerer: { select: { id: true, nickname: true } },
+      },
+    });
+
+    const corrector = await prisma.user.findUnique({ where: { id: userId }, select: { nickname: true } });
+    await TimelineService.aiAnswerModified(channelId, qid, answer, corrector?.nickname || '主持人');
+
+    const io = getIO();
+    io.to(channelId).emit(SocketEvents.QUESTION_AI_CORRECTED, {
+      channelId, question: updated, modifiedBy: corrector?.nickname,
+    });
+
+    // Re-evaluate progress async (only if game is still active)
+    const ch = await prisma.channel.findUnique({ 
+      where: { id: channelId }, 
+      select: { aiProgress: true, status: true } 
+    });
+    if (ch && ch.status === 'active') {
+      evaluateProgress(channelId, ch.aiProgress).then((progress) => {
+        io.to(channelId).emit(SocketEvents.PROGRESS_UPDATED, { channelId, progress });
+      });
+    }
+    res.json(updated);
+  } catch (err) {
+    logger.error('AI answer correction failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Request AI hint
+import { generateHint } from '../services/ai/hint';
+
+router.post('/:id/hints', authRequired, async (req: Request, res: Response) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user!.userId;
+
+    const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+    if (!channel || !channel.aiHintEnabled) {
+      res.status(400).json({ error: 'AI 线索未启用' });
+      return;
+    }
+
+    const member = await prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+    });
+    if (!member || member.role === 'host' || member.role === 'creator') {
+      res.status(403).json({ error: '主持人不能请求线索' });
+      return;
+    }
+
+    const usedCount = await prisma.aiHint.count({ where: { channelId, userId } });
+    if (usedCount >= channel.aiHintPerPlayer) {
+      res.status(403).json({ error: '线索次数已用完' });
+      return;
+    }
+
+    const hintText = await generateHint(channelId);
+    if (!hintText) {
+      res.status(503).json({ error: 'AI 暂时不可用，请稍后再试' });
+      return;
+    }
+
+    const hint = await prisma.aiHint.create({
+      data: { channelId, userId, content: hintText },
+      include: { user: { select: { id: true, nickname: true, avatarSeed: true } } },
+    });
+
+    await TimelineService.hintUsed(channelId, userId);
+
+    const remaining = channel.aiHintPerPlayer - usedCount - 1;
+    res.json({ hint, remaining });
+  } catch (err) {
+    logger.error('Hint request failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Toggle hint visibility
+router.put('/:id/hints/:hintId/visibility', authRequired, async (req: Request, res: Response) => {
+  try {
+    const { hintId } = req.params;
+    const channelId = req.params.id;
+    const userId = req.user!.userId;
+    const { isPublic } = req.body;
+
+    const hint = await prisma.aiHint.findUnique({ where: { id: hintId } });
+    if (!hint || hint.channelId !== channelId || hint.userId !== userId) {
+      res.status(403).json({ error: '只能修改自己的线索' });
+      return;
+    }
+
+    const updated = await prisma.aiHint.update({
+      where: { id: hintId },
+      data: { isPublic: !!isPublic },
+      include: { user: { select: { id: true, nickname: true, avatarSeed: true } } },
+    });
+
+    if (isPublic) {
+      await TimelineService.hintShared(channelId, userId);
+      const io = getIO();
+      io.to(channelId).emit(SocketEvents.HINT_SHARED, { channelId, hint: updated });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    logger.error('Hint visibility toggle failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Get hints list
+router.get('/:id/hints', authRequired, async (req: Request, res: Response) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user!.userId;
+
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { aiHintPerPlayer: true },
+    });
+    if (!channel) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+
+    const hints = await prisma.aiHint.findMany({
+      where: {
+        channelId,
+        OR: [
+          { isPublic: true },
+          { userId },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+      include: { user: { select: { id: true, nickname: true, avatarSeed: true } } },
+    });
+
+    const myUsedCount = await prisma.aiHint.count({ where: { channelId, userId } });
+    const myRemaining = channel.aiHintPerPlayer - myUsedCount;
+
+    res.json({ hints, myRemaining });
+  } catch (err) {
+    logger.error('Hints fetch failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Stats route: add aiReview to response
+// (Handled inline in existing stats route via channel.aiReview)
 
 export default router;

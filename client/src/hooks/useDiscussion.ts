@@ -75,6 +75,20 @@ export function useDiscussion(channelId: string | undefined) {
     setUnreadCount(0);
   }, []);
 
+  // Refresh latest messages (used on visibility restore after mobile screen-off)
+  const refreshLatest = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      const data = await api.get<ChatListResponse>(
+        `/channels/${channelId}/chat?limit=50`,
+      );
+      setMessages(data.messages);
+      setHasMore(data.hasMore);
+    } catch {
+      // Non-critical
+    }
+  }, [channelId]);
+
   return {
     messages,
     hasMore,
@@ -87,5 +101,6 @@ export function useDiscussion(channelId: string | undefined) {
     addMessage,
     incrementUnread,
     resetUnread,
+    refreshLatest,
   };
 }

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import {
   Crown, UserPlus, HelpCircle, MessageCircle,
-  Check, Target, Eye, Flag, Clock
+  Check, Target, Eye, Flag, Clock, Bot, Edit3, Lightbulb, Share2
 } from 'lucide-react';
 import type { TimelineEvent } from '../types';
 
@@ -15,6 +15,10 @@ const eventConfig = {
   role_changed: { icon: Eye, color: 'text-indigo-400' },
   truth_revealed: { icon: Eye, color: 'text-pink-400' },
   channel_ended: { icon: Flag, color: 'text-red-400' },
+  ai_answered: { icon: Bot, color: 'text-violet-500' },
+  ai_answer_modified: { icon: Edit3, color: 'text-violet-400' },
+  hint_used: { icon: Lightbulb, color: 'text-amber-500' },
+  hint_shared: { icon: Share2, color: 'text-amber-400' },
 };
 
 interface TimelineProps {
@@ -105,6 +109,10 @@ function formatEventText(event: TimelineEvent, meta: Record<string, any> | null 
       case 'role_changed': return `@${nickname} → 主理人`;
       case 'truth_revealed': return `@${nickname} 看真相`;
       case 'channel_ended': return `结束`;
+      case 'ai_answered': return `AI 回答「${formatAnswer(meta?.answer)}」`;
+      case 'ai_answer_modified': return `AI 回答已修正`;
+      case 'hint_used': return `@${nickname} 请求线索`;
+      case 'hint_shared': return `@${nickname} 分享线索`;
       default: return '';
     }
   }
@@ -119,6 +127,10 @@ function formatEventText(event: TimelineEvent, meta: Record<string, any> | null 
     case 'role_changed': return `@${nickname} 从玩家变为主理人`;
     case 'truth_revealed': return `@${nickname} 查看了汤底`;
     case 'channel_ended': return `游戏结束，共 ${meta?.totalQuestions || 0} 个问题`;
+    case 'ai_answered': return `🤖 AI 自动回答「${formatAnswer(meta?.answer)}」`;
+    case 'ai_answer_modified': return `@${meta?.modifiedBy || '主持人'} 修正了 AI 回答为「${formatAnswer(meta?.newAnswer)}」`;
+    case 'hint_used': return `@${nickname} 请求了一条 AI 线索`;
+    case 'hint_shared': return `@${nickname} 公开了自己的线索`;
     default: return '';
   }
 }

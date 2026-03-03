@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, Loader2, ChevronUp } from 'lucide-react';
 import type { ChatMessage } from '../../types';
@@ -9,6 +9,11 @@ interface DiscussionPanelProps {
   hasMore: boolean;
   loading: boolean;
   onLoadMore: () => void;
+  endedAt?: string | null;
+}
+
+export interface DiscussionPanelHandle {
+  scrollRef: HTMLDivElement | null;
 }
 
 function formatTime(dateStr: string): string {
@@ -87,87 +92,124 @@ function ChatBubble({
   );
 }
 
-export default function DiscussionPanel({
-  messages,
-  currentUserId,
-  hasMore,
-  loading,
-  onLoadMore,
-}: DiscussionPanelProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const prevLengthRef = useRef(messages.length);
+const DiscussionPanel = forwardRef<DiscussionPanelHandle, DiscussionPanelProps>(
+  function DiscussionPanel(
+    { messages, currentUserId, hasMore, loading, onLoadMore, endedAt },
+    ref,
+  ) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const bottomRef = useRef<HTMLDivElement>(null);
+    const prevLengthRef = useRef(messages.length);
 
-  // Auto-scroll on new messages (only when already near bottom)
-  useEffect(() => {
-    if (messages.length > prevLengthRef.current) {
-      const el = scrollRef.current;
-      if (el) {
-        const isNearBottom =
-          el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-        if (isNearBottom) {
-          bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    useImperativeHandle(ref, () => ({
+      get scrollRef() {
+        return scrollRef.current;
+      },
+    }));
+
+    // Auto-scroll on new messages (only when already near bottom)
+    useEffect(() => {
+      if (messages.length > prevLengthRef.current) {
+        const el = scrollRef.current;
+        if (el) {
+          const isNearBottom =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+          if (isNearBottom) {
+            bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }
         }
       }
+      prevLengthRef.current = messages.length;
+    }, [messages.length]);
+
+    // Scroll to bottom on first render
+    useEffect(() => {
+      bottomRef.current?.scrollIntoView();
+    }, []);
+
+    if (messages.length === 0 && !loading) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center text-text-muted py-16">
+          <MessageSquare className="w-12 h-12 mb-3 opacity-30" />
+          <p className="text-sm">还没有讨论</p>
+          <p className="text-xs mt-1">和其他玩家一起整理思路吧</p>
+        </div>
+      );
     }
-    prevLengthRef.current = messages.length;
-  }, [messages.length]);
 
-  // Scroll to bottom on first render
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView();
-  }, []);
+    const endTime = endedAt ? new Date(endedAt).getTime() : null;
 
-  if (messages.length === 0 && !loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-text-muted py-16">
-        <MessageSquare className="w-12 h-12 mb-3 opacity-30" />
-        <p className="text-sm">还没有讨论</p>
-        <p className="text-xs mt-1">和其他玩家一起整理思路吧</p>
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-none pb-2">
+        {/* Load more */}
+        {hasMore && (
+          <div className="flex justify-center py-3">
+            <button
+              onClick={onLoadMore}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-text-muted
+                         hover:text-text bg-surface/60 hover:bg-surface border border-border
+                         rounded-full transition-colors duration-200 cursor-pointer
+                         disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <ChevronUp className="w-3.5 h-3.5" />
+              )}
+              加载更多
+            </button>
+          </div>
+        )}
+
+        {/* Messages */}
+        {messages.map((msg, i) => {
+          const isOwn = msg.userId === currentUserId;
+          const grouped = shouldGroup(messages[i - 1], msg);
+
+          // Show end divider before first message that's after endedAt
+          let showEndDivider = false;
+          if (endTime) {
+            const msgTime = new Date(msg.createdAt).getTime();
+            if (msgTime > endTime) {
+              if (i === 0) {
+                showEndDivider = true;
+              } else {
+                const prevTime = new Date(messages[i - 1].createdAt).getTime();
+                showEndDivider = prevTime <= endTime;
+              }
+            }
+          }
+
+          return (
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              {showEndDivider && (
+                <div className="flex items-center gap-3 px-4 my-4">
+                  <div className="flex-1 h-px bg-border/60" />
+                  <span className="text-[11px] text-text-muted/50 whitespace-nowrap">
+                    游戏结束
+                  </span>
+                  <div className="flex-1 h-px bg-border/60" />
+                </div>
+              )}
+              <ChatBubble
+                message={msg}
+                isOwn={isOwn}
+                grouped={showEndDivider ? false : grouped}
+              />
+            </motion.div>
+          );
+        })}
+
+        <div ref={bottomRef} />
       </div>
     );
-  }
+  },
+);
 
-  return (
-    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-none pb-2">
-      {/* Load more */}
-      {hasMore && (
-        <div className="flex justify-center py-3">
-          <button
-            onClick={onLoadMore}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-text-muted
-                       hover:text-text bg-surface/60 hover:bg-surface border border-border
-                       rounded-full transition-colors duration-200 cursor-pointer
-                       disabled:opacity-50"
-          >
-            {loading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <ChevronUp className="w-3.5 h-3.5" />
-            )}
-            加载更多
-          </button>
-        </div>
-      )}
-
-      {/* Messages */}
-      {messages.map((msg, i) => {
-        const isOwn = msg.userId === currentUserId;
-        const grouped = shouldGroup(messages[i - 1], msg);
-        return (
-          <motion.div
-            key={msg.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            <ChatBubble message={msg} isOwn={isOwn} grouped={grouped} />
-          </motion.div>
-        );
-      })}
-
-      <div ref={bottomRef} />
-    </div>
-  );
-}
+export default DiscussionPanel;

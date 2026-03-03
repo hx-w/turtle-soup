@@ -1,30 +1,39 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, BarChart3, Clock } from 'lucide-react';
+import { X, BarChart3, Clock, Sparkles, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 import StatsPanel from './StatsPanel';
 import Timeline from './Timeline';
 import RatingStars from './RatingStars';
+import AiReviewPanel from './ai/AiReviewPanel';
 import type { ChannelStats, TimelineEvent } from '../types';
 
 interface StatsModalProps {
   channelId: string;
   stats: ChannelStats | null;
-  myRole: 'creator' | 'host' | 'player';
+  canRate: boolean;
   onClose: () => void;
   onStatsReload: () => void;
+  aiReview?: string | null;
+  aiReviewLoading?: boolean;
+  currentNickname?: string;
 }
 
 export default function StatsModal({
   channelId,
   stats,
-  myRole,
+  canRate,
   onClose,
   onStatsReload,
+  aiReview = null,
+  aiReviewLoading = false,
+  currentNickname = '',
 }: StatsModalProps) {
-  const [activeTab, setActiveTab] = useState<'stats' | 'timeline'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'review' | 'timeline'>('stats');
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [timelineLoaded, setTimelineLoaded] = useState(false);
+
+  const hasReview = aiReview || aiReviewLoading;
 
   const loadTimeline = useCallback(async () => {
     if (timelineLoaded) return;
@@ -101,6 +110,24 @@ export default function StatsModal({
             <BarChart3 className="w-4 h-4" />
             统计
           </button>
+          {hasReview && (
+            <button
+              onClick={() => setActiveTab('review')}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium
+                         transition-colors duration-200 cursor-pointer border-b-2 -mb-px
+                         ${activeTab === 'review'
+                           ? 'text-primary-light border-primary'
+                           : 'text-text-muted border-transparent hover:text-text'
+                         }`}
+            >
+              {aiReviewLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              回顾
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('timeline')}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium
@@ -120,7 +147,7 @@ export default function StatsModal({
           {activeTab === 'stats' && stats && (
             <div className="space-y-5">
               <StatsPanel stats={stats} />
-              {myRole === 'player' && (
+              {canRate && (
                 <RatingStars
                   channelId={channelId}
                   existingRating={stats.myRating ?? undefined}
@@ -135,6 +162,13 @@ export default function StatsModal({
             <div className="flex items-center justify-center py-12 text-text-muted">
               <p className="text-sm">统计数据加载中...</p>
             </div>
+          )}
+          {activeTab === 'review' && (
+            <AiReviewPanel
+              review={aiReview}
+              loading={aiReviewLoading}
+              currentNickname={currentNickname}
+            />
           )}
           {activeTab === 'timeline' && (
             <Timeline events={timeline} />

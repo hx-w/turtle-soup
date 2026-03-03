@@ -1,0 +1,157 @@
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown, Check } from 'lucide-react';
+
+interface AiCorrectDropdownProps {
+  questionId: string;
+  currentAnswer: 'yes' | 'no' | 'irrelevant' | 'partial';
+  currentIsKey: boolean;
+  onCorrect: (qid: string, answer: string, isKey: boolean) => Promise<void>;
+}
+
+const answerOptions = [
+  { value: 'yes', label: '是', color: 'text-yes' },
+  { value: 'no', label: '否', color: 'text-no' },
+  { value: 'irrelevant', label: '无关', color: 'text-irrelevant' },
+  { value: 'partial', label: '部分正确', color: 'text-partial' },
+] as const;
+
+export default function AiCorrectDropdown({
+  questionId,
+  currentAnswer,
+  currentIsKey,
+  onCorrect,
+}: AiCorrectDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(currentAnswer);
+  const [isKey, setIsKey] = useState(currentIsKey);
+  const [loading, setLoading] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [dropUp, setDropUp] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const canMarkKey = selected === 'yes' || selected === 'no';
+
+  // Calculate position when opening
+  useEffect(() => {
+    if (open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const menuHeight = 200; // Approximate menu height
+      const viewportHeight = window.innerHeight;
+      
+      const shouldDropUp = rect.bottom + menuHeight > viewportHeight - 20;
+      setDropUp(shouldDropUp);
+      
+      if (shouldDropUp) {
+        setPosition({
+          top: rect.top - 8,
+          left: rect.left,
+        });
+      } else {
+        setPosition({
+          top: rect.bottom + 8,
+          left: rect.left,
+        });
+      }
+    }
+  }, [open]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [open]);
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await onCorrect(questionId, selected, canMarkKey && isKey);
+      setOpen(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const menuContent = (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: dropUp ? 8 : -8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: dropUp ? 8 : -8 }}
+      transition={{ duration: 0.12 }}
+      style={{
+        position: 'fixed',
+        top: position.top,
+        left: position.left,
+        transform: dropUp ? 'translateY(-100%)' : 'none',
+      }}
+      className="z-[100] w-48 p-2 rounded-xl
+                 bg-card/95 backdrop-blur-xl border border-border
+                 shadow-xl"
+    >
+      <div className="space-y-1 mb-2">
+        {answerOptions.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setSelected(opt.value)}
+            className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between cursor-pointer
+              ${selected === opt.value
+                ? 'bg-violet-50 dark:bg-violet-900/30 font-medium'
+                : 'hover:bg-surface/50'
+              } ${opt.color} transition-colors`}
+          >
+            {opt.label}
+            {selected === opt.value && <Check size={12} />}
+          </button>
+        ))}
+      </div>
+
+      {canMarkKey && (
+        <label className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-text-muted cursor-pointer hover:bg-surface/50 rounded">
+          <input
+            type="checkbox"
+            checked={isKey}
+            onChange={(e) => setIsKey(e.target.checked)}
+            className="w-3.5 h-3.5 rounded accent-primary"
+          />
+          关键问题
+        </label>
+      )}
+
+      <button
+        type="button"
+        onClick={handleConfirm}
+        disabled={loading}
+        className="w-full mt-2 px-2 py-1.5 rounded-lg text-xs font-medium text-white cursor-pointer
+                   bg-primary hover:bg-primary-light disabled:opacity-50 transition-colors"
+      >
+        {loading ? '提交中...' : '确认修改'}
+      </button>
+    </motion.div>
+  );
+
+  return (
+    <div ref={containerRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="text-xs text-violet-500 hover:text-violet-700 dark:hover:text-violet-300
+                   flex items-center gap-0.5 transition-colors cursor-pointer"
+      >
+        修改回答
+        <ChevronDown size={12} />
+      </button>
+
+      <AnimatePresence>
+        {open && createPortal(menuContent, document.body)}
+      </AnimatePresence>
+    </div>
+  );
+}

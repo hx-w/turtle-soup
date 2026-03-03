@@ -5,6 +5,7 @@ import path from 'path';
 import authRouter from './routes/auth';
 import channelsRouter from './routes/channels';
 import usersRouter from './routes/users';
+import aiRouter from './routes/ai';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -37,6 +38,7 @@ const apiLimiter = rateLimit({
 app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/channels', apiLimiter, channelsRouter);
 app.use('/api/users', apiLimiter, usersRouter);
+app.use('/api/ai', apiLimiter, aiRouter);
 
 // Central error handler
 app.use(errorHandler);

@@ -2,6 +2,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, PieChart, Minus, Target, Loader2, Send } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AnswerStamp from './AnswerStamp';
+import AiBadge from './ai/AiBadge';
+import AiReasoningToggle from './ai/AiReasoningToggle';
+import AiCorrectDropdown from './ai/AiCorrectDropdown';
 import type { Question } from '../types';
 
 interface QuestionBubbleProps {
@@ -10,6 +13,7 @@ interface QuestionBubbleProps {
   isHost?: boolean;
   onWithdraw?: (questionId: string) => void;
   onAnswer?: (questionId: string, answer: 'yes' | 'no' | 'irrelevant' | 'partial', isKeyQuestion: boolean) => Promise<void>;
+  onAiCorrect?: (qid: string, answer: string, isKey: boolean) => Promise<void>;
 }
 
 type AnswerType = 'yes' | 'no' | 'irrelevant' | 'partial';
@@ -54,6 +58,7 @@ export default function QuestionBubble({
   isHost,
   onWithdraw,
   onAnswer,
+  onAiCorrect,
 }: QuestionBubbleProps) {
   const isOwn = currentUserId === question.asker.id;
   const isPending = question.status === 'pending';
@@ -122,7 +127,11 @@ export default function QuestionBubble({
           </span>
         </div>
 
-        <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl rounded-tl-sm px-4 py-3">
+        <div className={`backdrop-blur-xl rounded-2xl rounded-tl-sm px-4 py-3 border ${
+          isOwn
+            ? 'bg-primary/15 border-primary/25'
+            : 'bg-card/60 border-border'
+        }`}>
           <p className="text-sm text-text leading-relaxed break-words">{question.content}</p>
         </div>
 
@@ -224,19 +233,42 @@ export default function QuestionBubble({
         </AnimatePresence>
 
         {isAnswered && question.answer && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <AnswerStamp answer={question.answer} isKeyQuestion={question.isKeyQuestion} />
+          <div className="mt-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <AnswerStamp answer={question.answer} isKeyQuestion={question.isKeyQuestion} />
 
-            {question.answerer && (
-              <span className="text-xs text-text-muted">
-                <span className="text-primary">@{question.answerer.nickname}</span> 回答
-              </span>
-            )}
+              {question.isAiAnswered ? (
+                <span className="text-xs text-text-muted flex items-center gap-1">
+                  <AiBadge /> 回答
+                </span>
+              ) : question.answerer ? (
+                <span className="text-xs text-text-muted">
+                  <span className="text-primary">@{question.answerer.nickname}</span> 回答
+                </span>
+              ) : null}
 
-            {question.answeredAt && (
-              <span className="text-xs text-text-muted">
-                {formatTime(question.answeredAt)}
-              </span>
+              {question.answeredAt && (
+                <span className="text-xs text-text-muted">
+                  {formatTime(question.answeredAt)}
+                </span>
+              )}
+            </div>
+
+            {/* AI-specific controls for host */}
+            {isHost && question.isAiAnswered && (
+              <div className="mt-1.5 flex items-center gap-3">
+                {onAiCorrect && (
+                  <AiCorrectDropdown
+                    questionId={question.id}
+                    currentAnswer={question.answer}
+                    currentIsKey={question.isKeyQuestion}
+                    onCorrect={onAiCorrect}
+                  />
+                )}
+                {question.aiReasoning && (
+                  <AiReasoningToggle reasoning={question.aiReasoning} />
+                )}
+              </div>
             )}
           </div>
         )}

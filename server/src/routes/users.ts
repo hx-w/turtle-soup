@@ -38,13 +38,14 @@ router.get('/me/stats', authRequired, async (req: Request, res: Response) => {
     const yesCount = questions.filter(q => q.answer === 'yes').length;
     const noCount = questions.filter(q => q.answer === 'no').length;
     const irrelevantCount = questions.filter(q => q.answer === 'irrelevant').length;
+    const partialCount = questions.filter(q => q.answer === 'partial').length;
 
     res.json({
       created,
       hosted,
       participated,
       totalQuestions: questions.length,
-      distribution: { yes: yesCount, no: noCount, irrelevant: irrelevantCount },
+      distribution: { yes: yesCount, no: noCount, irrelevant: irrelevantCount, partial: partialCount },
       hitRate: questions.length > 0 ? Math.round((yesCount / questions.length) * 100) : 0,
     });
   } catch (err) {

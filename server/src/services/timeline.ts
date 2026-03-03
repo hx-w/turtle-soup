@@ -55,4 +55,18 @@ export const TimelineService = {
 
   channelEnded: (channelId: string, totalQuestions: number) =>
     recordEvent(channelId, 'channel_ended', { metadata: { totalQuestions } }),
+
+  aiAnswered: (channelId: string, questionId: string, answer: string) =>
+    recordEvent(channelId, 'ai_answered', { questionId, metadata: { answer } }),
+
+  aiAnswerModified: (channelId: string, questionId: string, newAnswer: string, modifiedBy: string) =>
+    recordEvent(channelId, 'ai_answer_modified', {
+      questionId, metadata: { newAnswer, modifiedBy },
+    }),
+
+  hintUsed: (channelId: string, userId: string) =>
+    recordEvent(channelId, 'hint_used', { userId }),
+
+  hintShared: (channelId: string, userId: string) =>
+    recordEvent(channelId, 'hint_shared', { userId }),
 };
