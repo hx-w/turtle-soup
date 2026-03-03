@@ -40,7 +40,7 @@ export default function ChatInput({ isHost, isActive, channelEnded, onSend }: Ch
   // During active game: hosts can only view. After game ends: everyone can chat.
   if (isActive && isHost) {
     return (
-      <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3 safe-area-bottom">
+      <div className="flex-shrink-0 bg-surface border-t border-border px-4 py-3 safe-area-bottom">
         <div className="flex items-center justify-center gap-2 py-2">
           <ShieldAlert className="w-4 h-4 text-text-muted/60" />
           <span className="text-sm text-text-muted">游戏进行中主持人仅可查看讨论</span>
@@ -52,7 +52,7 @@ export default function ChatInput({ isHost, isActive, channelEnded, onSend }: Ch
   // Archived or otherwise unavailable
   if (!isActive && !channelEnded) {
     return (
-      <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3 safe-area-bottom">
+      <div className="flex-shrink-0 bg-surface border-t border-border px-4 py-3 safe-area-bottom">
         <div className="flex items-center justify-center gap-2 py-2">
           <ShieldAlert className="w-4 h-4 text-text-muted/60" />
           <span className="text-sm text-text-muted">频道不可用</span>
@@ -62,7 +62,7 @@ export default function ChatInput({ isHost, isActive, channelEnded, onSend }: Ch
   }
 
   return (
-    <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3 safe-area-bottom">
+    <div className="flex-shrink-0 bg-surface border-t border-border px-4 py-3 safe-area-bottom">
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}

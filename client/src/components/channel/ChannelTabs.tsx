@@ -37,7 +37,7 @@ export default function ChannelTabs({
   }
 
   return (
-    <div className="flex-shrink-0 flex border-b border-border bg-surface/40 relative">
+    <div className="flex-shrink-0 flex border-b border-border bg-surface relative">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
         const Icon = tab.icon;
@@ -47,8 +47,8 @@ export default function ChannelTabs({
             onClick={() => onTabChange(tab.key)}
             className={`
               relative flex-1 flex items-center justify-center gap-1.5
-              py-2.5 text-sm font-medium transition-colors duration-200
-              cursor-pointer
+              py-3 text-sm font-medium transition-colors duration-150
+              cursor-pointer touch-manipulation
               ${isActive ? 'text-primary' : 'text-text-muted hover:text-text'}
             `}
           >
@@ -74,7 +74,7 @@ export default function ChannelTabs({
             {isActive && (
               <motion.div
                 layoutId={channelId ? `tab-indicator-${channelId}` : undefined}
-                className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full"
+                className="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}

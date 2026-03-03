@@ -143,3 +143,5 @@ vite.config.ts.timestamp-*
 nginx.conf.example
 
 plans
+
+.opencode

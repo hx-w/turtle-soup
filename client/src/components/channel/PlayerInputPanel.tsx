@@ -31,7 +31,7 @@ export default function PlayerInputPanel({
   }, [questionText, autoResize]);
 
   return (
-    <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3 safe-area-bottom">
+    <div className="flex-shrink-0 bg-surface border-t border-border px-4 py-3 safe-area-bottom">
       {hasPending ? (
         <div className="flex items-center justify-center gap-2 py-2">
           <span className="text-sm text-text-muted">等待回答中...</span>

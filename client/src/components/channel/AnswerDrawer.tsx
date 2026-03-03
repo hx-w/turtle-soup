@@ -75,7 +75,7 @@ export default function AnswerDrawer({ pendingQuestions, onAnswer }: AnswerDrawe
 
   if (!currentQuestion) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-border p-6 text-center safe-area-bottom">
+      <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border p-6 text-center safe-area-bottom">
         <p className="text-text-muted">暂无待回答的问题</p>
       </div>
     );
@@ -85,7 +85,7 @@ export default function AnswerDrawer({ pendingQuestions, onAnswer }: AnswerDrawe
     <motion.div
       initial={{ y: 100 }}
       animate={{ y: 0 }}
-      className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-border shadow-2xl safe-area-bottom"
+      className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border shadow-xl safe-area-bottom"
     >
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -110,7 +110,7 @@ export default function AnswerDrawer({ pendingQuestions, onAnswer }: AnswerDrawe
                 </span>
               </div>
 
-              <div className="bg-card/60 border border-border rounded-xl p-3">
+              <div className="bg-card border border-border rounded-xl p-3">
                 <div className="flex items-start gap-2">
                   <img
                     src={`https://api.dicebear.com/7.x/thumbs/svg?seed=${currentQuestion.asker.avatarSeed}`}
@@ -165,8 +165,8 @@ export default function AnswerDrawer({ pendingQuestions, onAnswer }: AnswerDrawe
                       w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2
                       transition-colors duration-150
                       ${isKeyQuestion
-                        ? 'bg-orange-500/20 border-orange-500 text-orange-600 dark:text-orange-400'
-                        : 'bg-card/60 border-border text-text-muted'}
+                         ? 'bg-orange-500/20 border-orange-500 text-orange-600 dark:text-orange-400'
+                         : 'bg-card border-border text-text-muted'}
                     `}
                   >
                     <Target className="w-4 h-4" />

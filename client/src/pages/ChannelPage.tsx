@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, AlertTriangle, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
+import { Loader2, AlertTriangle, HelpCircle, ArrowUp, ArrowDown } from 'lucide-react';
 import HintsPanel, { type HintsPanelHandle } from '../components/ai/HintsPanel';
 import { toast } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
@@ -38,7 +38,6 @@ export default function ChannelPage() {
     handleSocketRoleChanged, handleSocketChannelEnded, updateOnlineUsers,
     handleEditSoup,
     handleSocketChannelUpdated,
-    // AI
     aiProgress, aiReview, setAiReview, aiReviewLoading, setAiReviewLoading,
     hints, hintRemaining, hintLoading,
     handleAiCorrect, handleRequestHint, handleToggleHintPublic, loadHints,
@@ -49,7 +48,6 @@ export default function ChannelPage() {
 
   const discussion = useDiscussion(channelId);
 
-  // UI state
   const [activeTab, setActiveTab] = useState<TabKey>('qa');
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
@@ -61,9 +59,7 @@ export default function ChannelPage() {
   const [showEditSoup, setShowEditSoup] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Scroll FAB state
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [showScrollFAB, setShowScrollFAB] = useState<'up' | 'down' | 'both' | 'none'>('none');
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
   const scrollListenerRef = useRef<(() => void) | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -73,7 +69,6 @@ export default function ChannelPage() {
   const discussionRef = useRef<DiscussionPanelHandle>(null);
   const hintsRef = useRef<HintsPanelHandle>(null);
 
-  // Derived
   const answeredCount = questions.filter((q) => q.status === 'answered').length;
   const hasPending = questions.some(
     (q) => q.asker.id === user?.id && q.status === 'pending',
@@ -81,37 +76,36 @@ export default function ChannelPage() {
   const isActive = channel?.status === 'active' && !channelEnded;
   const isHostOrCreator = myRole === 'host' || myRole === 'creator';
 
-
-  // Scroll to bottom on new questions
-  const scrollToBottom = useCallback(() => {
+  useEffect(() => {
     if (timelineRef.current) {
       timelineRef.current.scrollTop = timelineRef.current.scrollHeight;
     }
-  }, []);
+  }, [questions]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [questions, scrollToBottom]);
-
-  // 检查滚动状态
   const checkScrollState = useCallback(() => {
     const el = scrollElementRef.current;
     if (!el) {
-      setShowScrollTop(false);
-      setShowScrollBottom(false);
+      setShowScrollFAB('none');
       return;
     }
     const { scrollTop, scrollHeight, clientHeight } = el;
-    const canScroll = scrollHeight > clientHeight + 10;
-    const showTop = canScroll && scrollTop > 20;
-    const showBottom = canScroll && scrollHeight - scrollTop - clientHeight > 20;
-    setShowScrollTop(showTop);
-    setShowScrollBottom(showBottom);
+    const threshold = 60;
+    const canScroll = scrollHeight > clientHeight + threshold;
+    const atTop = scrollTop < threshold;
+    const atBottom = scrollHeight - scrollTop - clientHeight < threshold;
+
+    if (!canScroll) {
+      setShowScrollFAB('none');
+    } else if (atTop) {
+      setShowScrollFAB('down');
+    } else if (atBottom) {
+      setShowScrollFAB('up');
+    } else {
+      setShowScrollFAB('both');
+    }
   }, []);
 
-  // 设置滚动容器并绑定观察者
   useEffect(() => {
-    // 清理旧的监听器
     if (scrollElementRef.current && scrollListenerRef.current) {
       scrollElementRef.current.removeEventListener('scroll', scrollListenerRef.current);
     }
@@ -119,7 +113,6 @@ export default function ChannelPage() {
     mutationObserverRef.current?.disconnect();
 
     const setupElement = (el: HTMLDivElement | null) => {
-      // 先清理之前的监听器
       if (scrollElementRef.current && scrollListenerRef.current) {
         scrollElementRef.current.removeEventListener('scroll', scrollListenerRef.current);
       }
@@ -127,31 +120,25 @@ export default function ChannelPage() {
 
       if (!el) {
         scrollListenerRef.current = null;
-        setShowScrollTop(false);
-        setShowScrollBottom(false);
+        setShowScrollFAB('none');
         return;
       }
 
-      // 使用 requestAnimationFrame 确保 DOM 已渲染
       requestAnimationFrame(() => {
         checkScrollState();
       });
 
-      // 监听滚动事件
       const onScroll = () => checkScrollState();
       scrollListenerRef.current = onScroll;
       el.addEventListener('scroll', onScroll, { passive: true });
 
-      // ResizeObserver: 监听容器大小变化
       resizeObserverRef.current = new ResizeObserver(() => checkScrollState());
       resizeObserverRef.current.observe(el);
 
-      // MutationObserver: 监听子元素变化
       mutationObserverRef.current = new MutationObserver(() => checkScrollState());
       mutationObserverRef.current.observe(el, { childList: true, subtree: true });
     };
 
-    // 获取当前 tab 的滚动容器
     const getScrollEl = (): HTMLDivElement | null => {
       if (activeTab === 'qa') return timelineRef.current;
       if (activeTab === 'discussion') return discussionRef.current?.scrollRef ?? null;
@@ -162,7 +149,6 @@ export default function ChannelPage() {
     const el = getScrollEl();
     setupElement(el);
 
-    // 延迟重试：处理 ref 还未就绪的情况
     const retryTimer = setTimeout(() => {
       const retryEl = getScrollEl();
       if (retryEl && retryEl !== scrollElementRef.current) {
@@ -170,7 +156,6 @@ export default function ChannelPage() {
       }
     }, 50);
 
-    // 二次重试：确保复杂组件完全渲染
     const retryTimer2 = setTimeout(() => {
       const retryEl = getScrollEl();
       if (retryEl && retryEl !== scrollElementRef.current) {
@@ -187,24 +172,21 @@ export default function ChannelPage() {
       resizeObserverRef.current?.disconnect();
       mutationObserverRef.current?.disconnect();
     };
-  }, [activeTab, checkScrollState, channel]); // 依赖 channel: 当 loading 结束后 channel 从 undefined 变成实际值，需要重新绑定滚动容器
+  }, [activeTab, checkScrollState, channel]);
 
-
-  // 内容变化时重新检查
   useEffect(() => {
     checkScrollState();
   }, [questions.length, discussion.messages.length, hints.length, checkScrollState]);
 
-  const scrollToTopFAB = useCallback(() => {
+  const scrollToTop = useCallback(() => {
     scrollElementRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const scrollToBottomFAB = useCallback(() => {
+  const scrollToBottom = useCallback(() => {
     const el = scrollElementRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, []);
 
-  // Load discussion messages when tab is first opened
   const handleTabChange = useCallback(
     (tab: TabKey) => {
       setActiveTab(tab);
@@ -218,10 +200,9 @@ export default function ChannelPage() {
         loadHints();
       }
     },
-    [discussion],
+    [discussion, loadHints],
   );
 
-  // Socket events
   useChannelSocket(channelId, user?.id, {
     onNewQuestion: addQuestion,
     onQuestionAnswered: markAnswered,
@@ -234,7 +215,6 @@ export default function ChannelPage() {
     onChannelUpdated: handleSocketChannelUpdated,
     onOnlineUsersUpdate: updateOnlineUsers,
     onNewChatMessage: (msg) => {
-      // Don't add own messages (already added optimistically)
       if (msg.userId === user?.id) return;
       discussion.addMessage(msg);
       if (activeTab !== 'discussion') {
@@ -257,7 +237,6 @@ export default function ChannelPage() {
     },
   });
 
-  // Actions
   async function onSubmitQuestion() {
     if (!questionText.trim() || submitting || !channelId || hasPending) return;
     setSubmitting(true);
@@ -303,7 +282,6 @@ export default function ChannelPage() {
     }
   }
 
-  // Loading / Error states
   if (loading) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
@@ -319,8 +297,8 @@ export default function ChannelPage() {
         <p className="text-text">{error || '频道不存在'}</p>
         <button
           onClick={() => navigate('/')}
-          className="px-6 py-2 bg-primary text-white rounded-xl cursor-pointer
-                     transition-colors duration-200 hover:bg-primary-light"
+          className="px-6 py-2.5 bg-primary text-white rounded-xl cursor-pointer
+                     transition-colors duration-150 hover:bg-primary-light font-medium"
         >
           返回大厅
         </button>
@@ -364,9 +342,6 @@ export default function ChannelPage() {
         onDelete={() => setConfirmDelete(true)}
       />
 
-      {/* Tabs */}
-
-      {/* Tabs */}
       <ChannelTabs
         channelId={channel.id}
         activeTab={activeTab}
@@ -376,7 +351,6 @@ export default function ChannelPage() {
         aiHintEnabled={channel.aiHintEnabled}
       />
 
-      {/* Tab Content */}
       {activeTab === 'hints' ? (
         <div className="flex-1 min-h-0 flex flex-col">
           <HintsPanel
@@ -392,8 +366,7 @@ export default function ChannelPage() {
         </div>
       ) : activeTab === 'qa' ? (
         <div className="flex-1 min-h-0 flex flex-col">
-          {/* Question Timeline */}
-          <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto py-3 space-y-1 overscroll-none">
+          <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-3 space-y-1">
             {questions.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-text-muted">
                 <HelpCircle className="w-12 h-12 mb-3 opacity-30" />
@@ -425,7 +398,7 @@ export default function ChannelPage() {
               submitting={submitting}
             />
           ) : isActive && isHostOrCreator ? (
-            <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3 safe-area-bottom pointer-events-none">
+            <div className="flex-shrink-0 bg-surface border-t border-border px-4 py-3 pointer-events-none">
               <div className="flex items-center justify-center gap-2 py-2">
                 <span className="text-sm text-text-muted">主持人仅可回答问题</span>
               </div>
@@ -434,7 +407,6 @@ export default function ChannelPage() {
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          {/* Discussion */}
           <DiscussionPanel
             ref={discussionRef}
             messages={discussion.messages}
@@ -445,7 +417,6 @@ export default function ChannelPage() {
             endedAt={channel.endedAt}
           />
 
-          {/* Chat Input */}
           <ChatInput
             isHost={isHostOrCreator}
             isActive={isActive}
@@ -455,55 +426,49 @@ export default function ChannelPage() {
         </div>
       )}
 
-
-      {/* Floating scroll buttons */}
       <AnimatePresence>
-        {showScrollTop && (
-          <motion.button
-            key="scroll-top"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+        {showScrollFAB !== 'none' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.15 }}
-            onClick={scrollToTopFAB}
-            className="fixed right-4 z-30 w-11 h-11 flex items-center justify-center
-                       bg-surface/95 backdrop-blur-md border border-border rounded-full shadow-md
-                       text-text-muted hover:text-primary hover:bg-surface hover:border-primary/30
-                       active:scale-95 transition-all duration-150 cursor-pointer
-                       touch-manipulation"
-            style={{ bottom: showScrollBottom ? 'calc(7.5rem + env(safe-area-inset-bottom, 0px))' : 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
-            aria-label="滚动到顶部"
+            className="fixed right-3 z-30 flex flex-col gap-1.5
+                       bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
           >
-            <ChevronUp className="w-5 h-5" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {showScrollBottom && (
-          <motion.button
-            key="scroll-bottom"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-            onClick={scrollToBottomFAB}
-            className="fixed right-4 z-30 w-11 h-11 flex items-center justify-center
-                       bg-surface/95 backdrop-blur-md border border-border rounded-full shadow-md
-                       text-text-muted hover:text-primary hover:bg-surface hover:border-primary/30
-                       active:scale-95 transition-all duration-150 cursor-pointer
-                       touch-manipulation"
-            style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
-            aria-label="滚动到底部"
-          >
-            <ChevronDown className="w-5 h-5" />
-          </motion.button>
+            {(showScrollFAB === 'up' || showScrollFAB === 'both') && (
+              <button
+                onClick={scrollToTop}
+                className="w-9 h-9 flex items-center justify-center
+                           bg-card border border-border rounded-lg
+                           text-text-muted hover:text-primary hover:border-primary/30
+                           active:scale-95 transition-all duration-150 cursor-pointer
+                           shadow-sm"
+                aria-label="滚动到顶部"
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+            )}
+            {(showScrollFAB === 'down' || showScrollFAB === 'both') && (
+              <button
+                onClick={scrollToBottom}
+                className="w-9 h-9 flex items-center justify-center
+                           bg-card border border-border rounded-lg
+                           text-text-muted hover:text-primary hover:border-primary/30
+                           active:scale-95 transition-all duration-150 cursor-pointer
+                           shadow-sm"
+                aria-label="滚动到底部"
+              >
+                <ArrowDown className="w-4 h-4" />
+              </button>
+            )}
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Overlays / Modals */}
       <AnimatePresence>
         {showStatsModal && channelId && (
-<StatsModal
+          <StatsModal
             channelId={channelId}
             stats={channelStats}
             canRate={myRole === 'host' || myRole === 'player'}
