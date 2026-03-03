@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, AlertTriangle, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
@@ -64,8 +64,10 @@ export default function ChannelPage() {
   // Scroll FAB state
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
-  // 用于追踪当前滚动元素的状态
-  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
+  const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const scrollListenerRef = useRef<(() => void) | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const mutationObserverRef = useRef<MutationObserver | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const discussionRef = useRef<DiscussionPanelHandle>(null);
@@ -91,79 +93,116 @@ export default function ChannelPage() {
     scrollToBottom();
   }, [questions, scrollToBottom]);
 
-  // 获取当前激活 tab 的滚动容器
-  const getScrollElement = useCallback(() => {
-    if (activeTab === 'qa') return timelineRef.current;
-    if (activeTab === 'discussion') return discussionRef.current?.scrollRef ?? null;
-    if (activeTab === 'hints') return hintsRef.current?.scrollRef ?? null;
-    return null;
-  }, [activeTab]);
-
-  // 当 activeTab 变化时，更新 scrollElement
-  useLayoutEffect(() => {
-    const el = getScrollElement();
-    setScrollElement(el);
-
-    // 延迟再次检查，确保 ref 已就绪
-    const timer = setTimeout(() => {
-      setScrollElement(getScrollElement());
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [activeTab, getScrollElement]);
-
-  // 监听 scrollElement 变化
-  useEffect(() => {
-    if (!scrollElement) {
+  // 检查滚动状态
+  const checkScrollState = useCallback(() => {
+    const el = scrollElementRef.current;
+    if (!el) {
       setShowScrollTop(false);
       setShowScrollBottom(false);
       return;
     }
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const canScroll = scrollHeight > clientHeight + 10;
+    const showTop = canScroll && scrollTop > 20;
+    const showBottom = canScroll && scrollHeight - scrollTop - clientHeight > 20;
+    setShowScrollTop(showTop);
+    setShowScrollBottom(showBottom);
+  }, []);
 
-    const checkScroll = () => {
-      if (!scrollElement) return;
-      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
-      const canScroll = scrollHeight > clientHeight + 1;
-      setShowScrollTop(canScroll && scrollTop > 1);
-      setShowScrollBottom(canScroll && scrollHeight - scrollTop - clientHeight > 1);
+  // 设置滚动容器并绑定观察者
+  useEffect(() => {
+    // 清理旧的监听器
+    if (scrollElementRef.current && scrollListenerRef.current) {
+      scrollElementRef.current.removeEventListener('scroll', scrollListenerRef.current);
+    }
+    resizeObserverRef.current?.disconnect();
+    mutationObserverRef.current?.disconnect();
+
+    const setupElement = (el: HTMLDivElement | null) => {
+      // 先清理之前的监听器
+      if (scrollElementRef.current && scrollListenerRef.current) {
+        scrollElementRef.current.removeEventListener('scroll', scrollListenerRef.current);
+      }
+      scrollElementRef.current = el;
+
+      if (!el) {
+        scrollListenerRef.current = null;
+        setShowScrollTop(false);
+        setShowScrollBottom(false);
+        return;
+      }
+
+      // 使用 requestAnimationFrame 确保 DOM 已渲染
+      requestAnimationFrame(() => {
+        checkScrollState();
+      });
+
+      // 监听滚动事件
+      const onScroll = () => checkScrollState();
+      scrollListenerRef.current = onScroll;
+      el.addEventListener('scroll', onScroll, { passive: true });
+
+      // ResizeObserver: 监听容器大小变化
+      resizeObserverRef.current = new ResizeObserver(() => checkScrollState());
+      resizeObserverRef.current.observe(el);
+
+      // MutationObserver: 监听子元素变化
+      mutationObserverRef.current = new MutationObserver(() => checkScrollState());
+      mutationObserverRef.current.observe(el, { childList: true, subtree: true });
     };
 
-    scrollElement.addEventListener('scroll', checkScroll, { passive: true });
-    checkScroll(); // 立即检查一次
+    // 获取当前 tab 的滚动容器
+    const getScrollEl = (): HTMLDivElement | null => {
+      if (activeTab === 'qa') return timelineRef.current;
+      if (activeTab === 'discussion') return discussionRef.current?.scrollRef ?? null;
+      if (activeTab === 'hints') return hintsRef.current?.scrollRef ?? null;
+      return null;
+    };
 
-    // 轮询作为后备机制（每 500ms 检查一次）
-    const interval = setInterval(checkScroll, 500);
+    const el = getScrollEl();
+    setupElement(el);
+
+    // 延迟重试：处理 ref 还未就绪的情况
+    const retryTimer = setTimeout(() => {
+      const retryEl = getScrollEl();
+      if (retryEl && retryEl !== scrollElementRef.current) {
+        setupElement(retryEl);
+      }
+    }, 50);
+
+    // 二次重试：确保复杂组件完全渲染
+    const retryTimer2 = setTimeout(() => {
+      const retryEl = getScrollEl();
+      if (retryEl && retryEl !== scrollElementRef.current) {
+        setupElement(retryEl);
+      }
+    }, 200);
 
     return () => {
-      scrollElement.removeEventListener('scroll', checkScroll);
-      clearInterval(interval);
+      clearTimeout(retryTimer);
+      clearTimeout(retryTimer2);
+      if (scrollElementRef.current && scrollListenerRef.current) {
+        scrollElementRef.current.removeEventListener('scroll', scrollListenerRef.current);
+      }
+      resizeObserverRef.current?.disconnect();
+      mutationObserverRef.current?.disconnect();
     };
-  }, [scrollElement]);
+  }, [activeTab, checkScrollState, channel]); // 依赖 channel: 当 loading 结束后 channel 从 undefined 变成实际值，需要重新绑定滚动容器
+
 
   // 内容变化时重新检查
   useEffect(() => {
-    if (!scrollElement) return;
-    const checkScroll = () => {
-      if (!scrollElement) return;
-      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
-      const canScroll = scrollHeight > clientHeight + 1;
-      setShowScrollTop(canScroll && scrollTop > 1);
-      setShowScrollBottom(canScroll && scrollHeight - scrollTop - clientHeight > 1);
-    };
-    // 多次延迟检查，确保 DOM 完全渲染
-    const timers = [50, 150, 300, 500].map(ms => setTimeout(checkScroll, ms));
-    return () => timers.forEach(clearTimeout);
-  }, [scrollElement, questions.length, discussion.messages.length, hints.length]);
+    checkScrollState();
+  }, [questions.length, discussion.messages.length, hints.length, checkScrollState]);
 
   const scrollToTopFAB = useCallback(() => {
-    const el = getScrollElement();
-    el?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [getScrollElement]);
+    scrollElementRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const scrollToBottomFAB = useCallback(() => {
-    const el = getScrollElement();
+    const el = scrollElementRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [getScrollElement]);
+  }, []);
 
   // Load discussion messages when tab is first opened
   const handleTabChange = useCallback(
@@ -339,7 +378,7 @@ export default function ChannelPage() {
 
       {/* Tab Content */}
       {activeTab === 'hints' ? (
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 flex flex-col">
           <HintsPanel
             ref={hintsRef}
             hints={hints}
@@ -422,16 +461,17 @@ export default function ChannelPage() {
         {showScrollTop && (
           <motion.button
             key="scroll-top"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.15 }}
             onClick={scrollToTopFAB}
-            className="fixed right-4 z-30 w-10 h-10 flex items-center justify-center
-                       bg-card/90 backdrop-blur-xl border border-border rounded-full shadow-lg
-                       text-text-muted hover:text-text transition-colors duration-200 cursor-pointer
+            className="fixed right-4 z-30 w-11 h-11 flex items-center justify-center
+                       bg-surface/95 backdrop-blur-md border border-border rounded-full shadow-md
+                       text-text-muted hover:text-primary hover:bg-surface hover:border-primary/30
+                       active:scale-95 transition-all duration-150 cursor-pointer
                        touch-manipulation"
-            style={{ bottom: showScrollBottom ? 'calc(7rem + env(safe-area-inset-bottom, 0px))' : 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+            style={{ bottom: showScrollBottom ? 'calc(7.5rem + env(safe-area-inset-bottom, 0px))' : 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
             aria-label="滚动到顶部"
           >
             <ChevronUp className="w-5 h-5" />
@@ -442,16 +482,17 @@ export default function ChannelPage() {
         {showScrollBottom && (
           <motion.button
             key="scroll-bottom"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
             onClick={scrollToBottomFAB}
-            className="fixed right-4 z-30 w-10 h-10 flex items-center justify-center
-                       bg-card/90 backdrop-blur-xl border border-border rounded-full shadow-lg
-                       text-text-muted hover:text-text transition-colors duration-200 cursor-pointer
+            className="fixed right-4 z-30 w-11 h-11 flex items-center justify-center
+                       bg-surface/95 backdrop-blur-md border border-border rounded-full shadow-md
+                       text-text-muted hover:text-primary hover:bg-surface hover:border-primary/30
+                       active:scale-95 transition-all duration-150 cursor-pointer
                        touch-manipulation"
-            style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+            style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
             aria-label="滚动到底部"
           >
             <ChevronDown className="w-5 h-5" />
