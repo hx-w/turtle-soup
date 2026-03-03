@@ -263,6 +263,25 @@ App.tsx
 │   └── /profile        → ProfilePage (需登录)
 ```
 
+### Channel 页面组件
+
+```
+ChannelPage
+├── ChannelHeader          — 顶部标题栏（sticky）
+├── SurfacePanel           — 汤面展示（可折叠，折叠时显示紧凑栏）
+├── SurfaceBottomSheet     — 汤面全文 Bottom Sheet（拖拽关闭）
+├── ActionButtons          — 操作按钮（查看汤底、结束游戏、查看统计）
+├── ChannelTabs            — 问答/讨论 Tab 切换
+├── QuestionBubble         — 问题气泡（含回答选择器）
+├── PlayerInputPanel       — 玩家提问输入
+├── DiscussionPanel        — 讨论消息列表
+├── ChatInput              — 讨论输入框
+├── TruthReveal            — 汤底揭晓弹窗
+├── StatsModal             — 统计数据弹窗
+├── OnlineUsers            — 在线用户列表
+└── ConfirmDialog          — 二次确认对话框
+```
+
 ### 状态管理
 
 **authStore** — 用户认证状态：
@@ -306,6 +325,7 @@ App.tsx
 | `.input-field` | 输入框 |
 | `.badge` | 标签徽章 |
 | `.skeleton` | 骨架屏 |
+| `.safe-area-bottom` | iPhone 安全区域底部间距 |
 
 ## 测试
 
@@ -368,7 +388,7 @@ npm run test:watch
 **回答类型测试：**
 - 支持 yes/no/irrelevant/partial 四种类型
 - 关键问题标记（isKeyQuestion）仅在 yes/no 时有效
-- partial 和 irrelevant 自动提交（无关键问题选项）
+- 所有回答类型均需二次确认提交
 
 **时间线测试：**
 - 创建汤时记录 channel_created 事件

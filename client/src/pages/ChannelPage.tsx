@@ -40,7 +40,6 @@ export default function ChannelPage() {
   // UI state
   const [activeTab, setActiveTab] = useState<TabKey>('qa');
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const [surfaceCollapsed, setSurfaceCollapsed] = useState(false);
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [showTruth, setShowTruth] = useState(false);
   const [questionText, setQuestionText] = useState('');
@@ -175,11 +174,7 @@ export default function ChannelPage() {
         onShowOnlineUsers={() => setShowOnlineUsers(true)}
       />
 
-      <SurfacePanel
-        surface={channel.surface}
-        collapsed={surfaceCollapsed}
-        onToggle={() => setSurfaceCollapsed(!surfaceCollapsed)}
-      />
+      <SurfacePanel surface={channel.surface} />
 
       <ActionButtons
         isActive={isActive}
@@ -206,7 +201,7 @@ export default function ChannelPage() {
 
       {/* Tab Content */}
       {activeTab === 'qa' ? (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Question Timeline */}
           <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto py-3 space-y-1 overscroll-none">
             {questions.length === 0 && (
@@ -230,7 +225,7 @@ export default function ChannelPage() {
               ))}
           </div>
 
-          {isActive && myRole === 'player' && (
+          {isActive && myRole === 'player' ? (
             <PlayerInputPanel
               hasPending={hasPending}
               questionText={questionText}
@@ -238,10 +233,16 @@ export default function ChannelPage() {
               onSubmit={onSubmitQuestion}
               submitting={submitting}
             />
-          )}
-        </>
+          ) : isActive && isHostOrCreator ? (
+            <div className="flex-shrink-0 bg-surface/80 backdrop-blur-xl border-t border-border px-4 py-3 safe-area-bottom pointer-events-none">
+              <div className="flex items-center justify-center gap-2 py-2">
+                <span className="text-sm text-text-muted">主持人仅可回答问题</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Discussion */}
           <DiscussionPanel
             messages={discussion.messages}
@@ -257,8 +258,9 @@ export default function ChannelPage() {
             isActive={isActive}
             onSend={discussion.sendMessage}
           />
-        </>
+        </div>
       )}
+
 
       {/* Overlays / Modals */}
       <AnimatePresence>

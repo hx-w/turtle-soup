@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
-import TurtleLogo from '../components/TurtleLogo';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 
@@ -58,7 +57,7 @@ export default function LoginPage() {
         <div className="glass-card p-8">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <TurtleLogo size={64} />
+            <img src="/icons/icon-192x192.png" alt="海龟汤" className="w-16 h-16" />
             <h1 className="font-heading font-bold text-3xl mt-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               海龟汤
             </h1>

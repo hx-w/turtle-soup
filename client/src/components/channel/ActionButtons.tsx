@@ -51,7 +51,7 @@ export default function ActionButtons({
         </button>
       )}
 
-      {isHostOrCreator && truthText && (
+      {(isHostOrCreator || channelEnded) && truthText && (
         <button
           onClick={onViewTruth}
           className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5
