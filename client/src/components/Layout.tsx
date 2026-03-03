@@ -94,7 +94,7 @@ export default function Layout() {
                 {/* Dropdown */}
                 {dropdownOpen && (
                   <div
-                    className="absolute right-0 mt-2 w-48 glass-card shadow-xl shadow-black/20 py-2"
+                    className="absolute right-0 mt-2 w-48 dropdown-menu"
                     role="menu"
                   >
                     <button

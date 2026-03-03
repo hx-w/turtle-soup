@@ -9,7 +9,8 @@ interface AiReviewPanelProps {
 }
 
 function renderReviewText(text: string, currentNickname: string): ReactNode[] {
-  const parts = text.split(/(@\S+)/g);
+  // 匹配 @用户名：字母、数字、下划线、中文字符
+  const parts = text.split(/(@[\w\u4e00-\u9fff]+)/g);
   return parts.map((part, i) => {
     if (part.startsWith('@')) {
       const isMe = part.slice(1) === currentNickname;

@@ -104,7 +104,11 @@
 
 @layer components {
   .dropdown-menu {
-    @apply bg-card border border-border rounded-xl shadow-lg py-2;
+    @apply bg-card border border-border rounded-xl shadow-lg shadow-black/10 py-2;
+  }
+
+  :is(.dark .dropdown-menu) {
+    @apply bg-card shadow-lg shadow-black/40;
   }
 
   .btn-primary {
