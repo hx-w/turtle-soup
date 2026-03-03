@@ -25,7 +25,7 @@ const config = {
   partial: {
     label: '部分正确',
     icon: PieChart,
-    classes: 'bg-amber-500/20 text-amber-400 border-amber-400',
+    classes: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500 dark:border-orange-400',
   },
 } as const;
 
@@ -41,7 +41,7 @@ export default function AnswerStamp({ answer, isKeyQuestion }: AnswerStampProps)
     >
       <Icon className="w-4 h-4" strokeWidth={3} />
       <span>{label}</span>
-      {isKeyQuestion && <Target className="w-4 h-4 text-amber-400" />}
+      {isKeyQuestion && <Target className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
     </motion.div>
   );
 }

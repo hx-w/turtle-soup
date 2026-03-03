@@ -121,6 +121,7 @@ export interface ChatListResponse {
 }
 
 export interface UserStats {
+  created: number;
   hosted: number;
   participated: number;
   totalQuestions: number;

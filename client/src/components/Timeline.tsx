@@ -6,12 +6,12 @@ import {
 import type { TimelineEvent } from '../types';
 
 const eventConfig = {
-  channel_created: { icon: Crown, color: 'text-amber-400' },
+  channel_created: { icon: Crown, color: 'text-orange-600 dark:text-orange-400' },
   player_joined: { icon: UserPlus, color: 'text-blue-400' },
   first_question: { icon: HelpCircle, color: 'text-purple-400' },
   question_asked: { icon: MessageCircle, color: 'text-slate-400' },
   question_answered: { icon: Check, color: 'text-green-400' },
-  key_question: { icon: Target, color: 'text-amber-400' },
+  key_question: { icon: Target, color: 'text-orange-600 dark:text-orange-400' },
   role_changed: { icon: Eye, color: 'text-indigo-400' },
   truth_revealed: { icon: Eye, color: 'text-pink-400' },
   channel_ended: { icon: Flag, color: 'text-red-400' },
@@ -101,7 +101,7 @@ function formatEventText(event: TimelineEvent, meta: Record<string, any> | null 
       case 'first_question': return `首个问题`;
       case 'question_asked': return `@${nickname} 提问`;
       case 'question_answered': return `已回答「${formatAnswer(meta?.answer)}」`;
-      case 'key_question': return `🎯 关键问题`;
+      case 'key_question': return `关键问题`;
       case 'role_changed': return `@${nickname} → 主理人`;
       case 'truth_revealed': return `@${nickname} 看真相`;
       case 'channel_ended': return `结束`;
@@ -115,7 +115,7 @@ function formatEventText(event: TimelineEvent, meta: Record<string, any> | null 
     case 'first_question': return `@${nickname} 提出了第一个问题`;
     case 'question_asked': return `@${nickname} 提出了问题`;
     case 'question_answered': return `问题被 @${meta?.answerer || '主持人'} 回答「${formatAnswer(meta?.answer)}」`;
-    case 'key_question': return `🎯 @${nickname} 的问题被标记为关键问题`;
+    case 'key_question': return `@${nickname} 的问题被标记为关键`;
     case 'role_changed': return `@${nickname} 从玩家变为主理人`;
     case 'truth_revealed': return `@${nickname} 查看了汤底`;
     case 'channel_ended': return `游戏结束，共 ${meta?.totalQuestions || 0} 个问题`;

@@ -158,6 +158,7 @@ export function useChannelData(
           setChannelEnded(true);
           emitChannelEnded({ channelId });
           loadStats();
+          toast.success('已达到回答次数上限，游戏自动结束');
         }
       } catch (err: any) {
         toast.error(err?.message || '回答失败');

@@ -58,7 +58,7 @@ export const useChannelStore = create<ChannelState>((set) => ({
   isLoadingChannel: false,
 
   fetchChannels: async (params) => {
-    set({ isLoadingList: true });
+    // Stale-while-revalidate: never show loading spinner, just refresh silently
     try {
       const searchParams = new URLSearchParams();
       if (params?.status) searchParams.set('status', params.status);
@@ -73,8 +73,9 @@ export const useChannelStore = create<ChannelState>((set) => ({
         `/channels${query ? `?${query}` : ''}`,
       );
       set({ channels: data.channels, totalPages: data.totalPages });
-    } finally {
-      set({ isLoadingList: false });
+    } catch (error) {
+      // Silently fail - keep existing data on refresh errors
+      console.error('Failed to fetch channels:', error);
     }
   },
 

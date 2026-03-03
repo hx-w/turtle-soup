@@ -15,10 +15,33 @@ interface StatsPanelProps {
 }
 
 function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  if (mins === 0) return `${secs}秒`;
-  return `${mins}分${secs}秒`;
+  if (seconds < 0 || !Number.isFinite(seconds)) return '--';
+  
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  // Less than 1 minute
+  if (seconds < 60) {
+    return `${secs}秒`;
+  }
+  
+  // Less than 1 hour
+  if (seconds < 3600) {
+    if (secs === 0) return `${mins}分钟`;
+    return `${mins}分${secs}秒`;
+  }
+  
+  // Less than 1 day
+  if (seconds < 86400) {
+    if (mins === 0) return `${hours}小时`;
+    return `${hours}小时${mins}分钟`;
+  }
+  
+  // 1 day or more
+  if (hours === 0) return `${days}天`;
+  return `${days}天${hours}小时`;
 }
 
 function DistributionBar({
@@ -58,7 +81,7 @@ function DistributionBar({
             initial={{ width: 0 }}
             animate={{ width: `${partialPercent}%` }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="bg-amber-500"
+            className="bg-orange-500"
           />
         )}
         {irrelevantPercent > 0 && (
@@ -80,7 +103,7 @@ function DistributionBar({
           <span className="text-text-muted">否 {distribution.no}</span>
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
           <span className="text-text-muted">部分 {distribution.partial}</span>
         </span>
         <span className="flex items-center gap-1">
@@ -147,10 +170,10 @@ export default function StatsPanel({ stats }: StatsPanelProps) {
       </div>
 
       {stats.keyQuestionCount > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-3">
-          <Target className="w-6 h-6 text-amber-400" />
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 flex items-center gap-3">
+          <Target className="w-6 h-6 text-orange-600 dark:text-orange-400" />
           <div>
-            <p className="text-sm font-medium text-text">🎯 关键问题</p>
+            <p className="text-sm font-medium text-text">关键问题</p>
             <p className="text-xs text-text-muted">共 {stats.keyQuestionCount} 个关键问题被标记</p>
           </div>
         </div>
@@ -191,7 +214,7 @@ export default function StatsPanel({ stats }: StatsPanelProps) {
 
       {stats.hostContributions && stats.hostContributions.length > 0 && (
         <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-4">
-          <p className="text-sm font-medium text-text mb-3">🎭 主持人贡献</p>
+          <p className="text-sm font-medium text-text mb-3">主持人贡献</p>
           <div className="space-y-2">
             {stats.hostContributions.map((host) => (
               <div key={host.id} className="flex items-center justify-between">
@@ -208,7 +231,7 @@ export default function StatsPanel({ stats }: StatsPanelProps) {
                   <span className="text-yes">{host.yesCount} 是</span>
                   <span className="text-no">{host.noCount} 否</span>
                   {host.keyQuestions > 0 && (
-                    <span className="text-amber-400">🎯{host.keyQuestions}</span>
+                    <span className="text-orange-600 dark:text-orange-400">{host.keyQuestions} 关键</span>
                   )}
                 </div>
               </div>
@@ -226,7 +249,7 @@ export default function StatsPanel({ stats }: StatsPanelProps) {
               title="最佳侦探"
               nickname={stats.awards.bestDetective.nickname}
               detail={`${stats.awards.bestDetective.yes} 次命中`}
-              color="bg-accent/15 text-accent"
+              color="bg-orange-500/15 text-orange-600 dark:text-orange-400"
               delay={0.1}
             />
           )}

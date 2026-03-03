@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  Crown,
   Mic,
   Users,
   MessageCircle,
@@ -73,26 +74,29 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<User | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'player' | 'host'>('player');
-  const [playerChannels, setPlayerChannels] = useState<ChannelRecord[]>([]);
+  const [activeTab, setActiveTab] = useState<'creator' | 'host' | 'player'>('player');
+  const [creatorChannels, setCreatorChannels] = useState<ChannelRecord[]>([]);
   const [hostChannels, setHostChannels] = useState<ChannelRecord[]>([]);
+  const [playerChannels, setPlayerChannels] = useState<ChannelRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       try {
-        const [profileData, statsData, playerData, hostData] =
+        const [profileData, statsData, creatorData, hostData, playerData] =
           await Promise.all([
             api.get<User>('/users/me'),
             api.get<UserStats>('/users/me/stats'),
-            api.get<ChannelRecord[]>('/users/me/channels?role=player'),
+            api.get<ChannelRecord[]>('/users/me/channels?role=creator'),
             api.get<ChannelRecord[]>('/users/me/channels?role=host'),
+            api.get<ChannelRecord[]>('/users/me/channels?role=player'),
           ]);
         setProfile(profileData);
         setStats(statsData);
-        setPlayerChannels(playerData);
+        setCreatorChannels(creatorData);
         setHostChannels(hostData);
+        setPlayerChannels(playerData);
       } catch (err) {
         console.error('Failed to load profile:', err);
       } finally {
@@ -124,7 +128,10 @@ export default function ProfilePage() {
     stats.distribution.yes +
     stats.distribution.no +
     stats.distribution.irrelevant;
-  const channels = activeTab === 'player' ? playerChannels : hostChannels;
+  const channels =
+    activeTab === 'creator' ? creatorChannels :
+    activeTab === 'host' ? hostChannels :
+    playerChannels;
 
   return (
     <div className="-mt-2 min-h-screen bg-bg">
@@ -174,19 +181,27 @@ export default function ProfilePage() {
         {/* ------------------------------------------------------------------ */}
         {/*  Stats Grid                                                         */}
         {/* ------------------------------------------------------------------ */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <StatCard
-            icon={Mic}
-            label="主持场次"
-            value={stats.hosted}
+            icon={Crown}
+            label="创建"
+            value={stats.created}
             delay={0.1}
           />
           <StatCard
-            icon={Users}
-            label="参与场次"
-            value={stats.participated}
-            delay={0.15}
+            icon={Mic}
+            label="主持"
+            value={stats.hosted}
+            delay={0.13}
           />
+          <StatCard
+            icon={Users}
+            label="参与"
+            value={stats.participated}
+            delay={0.16}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <StatCard
             icon={MessageCircle}
             label="提问总数"
@@ -277,15 +292,15 @@ export default function ProfilePage() {
         <div>
           <div className="flex border-b border-border">
             <button
-              onClick={() => setActiveTab('player')}
+              onClick={() => setActiveTab('creator')}
               className={`flex-1 py-3 text-sm font-medium text-center transition-colors duration-200 cursor-pointer
                 ${
-                  activeTab === 'player'
+                  activeTab === 'creator'
                     ? 'text-primary-light border-b-2 border-primary'
                     : 'text-text-muted hover:text-text'
                 }`}
             >
-              参与记录 ({playerChannels.length})
+              创建 ({creatorChannels.length})
             </button>
             <button
               onClick={() => setActiveTab('host')}
@@ -296,7 +311,18 @@ export default function ProfilePage() {
                     : 'text-text-muted hover:text-text'
                 }`}
             >
-              主持记录 ({hostChannels.length})
+              主持 ({hostChannels.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('player')}
+              className={`flex-1 py-3 text-sm font-medium text-center transition-colors duration-200 cursor-pointer
+                ${
+                  activeTab === 'player'
+                    ? 'text-primary-light border-b-2 border-primary'
+                    : 'text-text-muted hover:text-text'
+                }`}
+            >
+              参与 ({playerChannels.length})
             </button>
           </div>
 
@@ -304,9 +330,9 @@ export default function ProfilePage() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, x: activeTab === 'player' ? -20 : 20 }}
+              initial={{ opacity: 0, x: activeTab === 'creator' ? -20 : activeTab === 'host' ? 0 : 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: activeTab === 'player' ? 20 : -20 }}
+              exit={{ opacity: 0, x: activeTab === 'creator' ? 20 : activeTab === 'host' ? 0 : -20 }}
               transition={{ duration: 0.2 }}
               className="py-3 space-y-3"
             >
@@ -325,9 +351,18 @@ export default function ProfilePage() {
                              transition-colors duration-200 cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="text-sm font-semibold text-text truncate">
-                      {record.channel.title}
-                    </h3>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="text-sm font-semibold text-text truncate">
+                        {record.channel.title}
+                      </h3>
+                      {activeTab === 'host' && record.role === 'host' && (
+                        <span
+                          className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-yes/15 text-yes"
+                        >
+                          主持人
+                        </span>
+                      )}
+                    </div>
                     <span
                       className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full ${
                         record.channel.status === 'active'

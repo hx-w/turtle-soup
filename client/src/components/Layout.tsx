@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { LogOut, User, ChevronDown, Sun, Moon } from 'lucide-react';
-import TurtleLogo from './TurtleLogo';
 import Avatar from './Avatar';
 import Navbar from './Navbar';
 import { useAuthStore } from '../stores/authStore';
@@ -54,7 +53,7 @@ export default function Layout() {
               className="flex items-center gap-2 cursor-pointer"
               aria-label="Home"
             >
-              <TurtleLogo size={32} />
+              <img src="/icons/icon-192x192.png" alt="海龟汤" className="w-8 h-8" />
               <span className="font-heading font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 海龟汤
               </span>

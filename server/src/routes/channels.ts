@@ -79,11 +79,17 @@ router.post('/', authRequired, validate(createSchema), async (req: Request, res:
 // List channels
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { status = 'active', search, difficulty, tag, sort = 'newest', page = '1' } = req.query;
+    const { status, search, difficulty, tag, sort = 'newest', page = '1' } = req.query;
     const take = 20;
     const skip = (Number(page) - 1) * take;
 
-    const where: Prisma.ChannelWhereInput = { status: String(status) as ChannelStatus };
+    const where: Prisma.ChannelWhereInput = {};
+    if (status) {
+      where.status = String(status) as ChannelStatus;
+    } else {
+      // Default: show active and ended, exclude archived
+      where.status = { in: ['active' as ChannelStatus, 'ended' as ChannelStatus] };
+    }
     if (search) {
       where.OR = [
         { title: { contains: String(search), mode: 'insensitive' } },
@@ -93,9 +99,10 @@ router.get('/', async (req: Request, res: Response) => {
     if (difficulty) where.difficulty = String(difficulty) as Difficulty;
     if (tag) where.tags = { has: String(tag) };
 
-    const orderBy: Prisma.ChannelOrderByWithRelationInput = sort === 'popular'
-      ? { members: { _count: 'desc' } }
-      : { createdAt: 'desc' };
+    // When showing mixed statuses, put active games first
+    const orderBy: Prisma.ChannelOrderByWithRelationInput[] = sort === 'popular'
+      ? [{ status: 'asc' }, { members: { _count: 'desc' } }]
+      : [{ status: 'asc' }, { createdAt: 'desc' }];
 
     const [channels, total] = await Promise.all([
       prisma.channel.findMany({

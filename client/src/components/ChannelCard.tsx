@@ -36,18 +36,29 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
   const progressPercent =
     maxQ > 0 ? Math.min((answeredCount / maxQ) * 100, 100) : 0;
 
+  const isEnded = channel.status === 'ended';
+
   return (
     <button
       onClick={() => navigate(`/channel/${channel.id}`)}
-      className="glass-card p-5 text-left w-full cursor-pointer
+      className={`glass-card p-5 text-left w-full cursor-pointer
                  hover:border-primary/50 transition-all duration-200 ease-out
-                 hover:scale-[1.01] group"
+                 hover:scale-[1.01] group ${isEnded ? 'opacity-75' : ''}`}
       aria-label={`进入房间: ${channel.title}`}
     >
       {/* Title */}
-      <h3 className="font-heading font-semibold text-base text-text group-hover:text-primary-light transition-colors duration-200 line-clamp-1">
-        {channel.title}
-      </h3>
+      <div className="flex items-center gap-2">
+        <h3 className="font-heading font-semibold text-base text-text group-hover:text-primary-light transition-colors duration-200 line-clamp-1 flex-1 min-w-0">
+          {channel.title}
+        </h3>
+        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full ${
+          isEnded
+            ? 'bg-text-muted/15 text-text-muted'
+            : 'bg-yes/15 text-yes'
+        }`}>
+          {isEnded ? '已结束' : '进行中'}
+        </span>
+      </div>
 
       {/* Surface preview */}
       <p className="text-text-muted text-sm mt-2 line-clamp-2 leading-relaxed">

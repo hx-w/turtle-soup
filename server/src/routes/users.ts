@@ -25,7 +25,8 @@ router.get('/me/stats', authRequired, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
 
-    const [hosted, participated, questions] = await Promise.all([
+    const [created, hosted, participated, questions] = await Promise.all([
+      prisma.channelMember.count({ where: { userId, role: 'creator' as MemberRole } }),
       prisma.channelMember.count({ where: { userId, role: 'host' } }),
       prisma.channelMember.count({ where: { userId, role: 'player' } }),
       prisma.question.findMany({
@@ -39,6 +40,7 @@ router.get('/me/stats', authRequired, async (req: Request, res: Response) => {
     const irrelevantCount = questions.filter(q => q.answer === 'irrelevant').length;
 
     res.json({
+      created,
       hosted,
       participated,
       totalQuestions: questions.length,
@@ -57,7 +59,10 @@ router.get('/me/channels', authRequired, async (req: Request, res: Response) => 
     const { role } = req.query;
 
     const where: Prisma.ChannelMemberWhereInput = { userId };
-    if (role) where.role = String(role) as MemberRole;
+    if (role) {
+      // Query exact role match for creator, host, and player tabs
+      where.role = String(role) as MemberRole;
+    }
 
     const memberships = await prisma.channelMember.findMany({
       where,

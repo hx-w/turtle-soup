@@ -13,7 +13,7 @@ type AnswerType = 'yes' | 'no' | 'irrelevant' | 'partial';
 const answerConfig = {
   yes: { label: '是', icon: Check, color: 'bg-yes/15 border-yes text-yes active:bg-yes/30' },
   no: { label: '否', icon: X, color: 'bg-no/15 border-no text-no active:bg-no/30' },
-  partial: { label: '部分正确', icon: PieChart, color: 'bg-amber-500/15 border-amber-500 text-amber-400 active:bg-amber-500/30' },
+  partial: { label: '部分正确', icon: PieChart, color: 'bg-orange-500/15 border-orange-500 text-orange-600 dark:text-orange-400 active:bg-orange-500/30' },
   irrelevant: { label: '无关', icon: Minus, color: 'bg-irrelevant/15 border-irrelevant text-irrelevant active:bg-irrelevant/30' },
 };
 
@@ -162,10 +162,10 @@ export default function AnswerDrawer({ pendingQuestions, onAnswer }: AnswerDrawe
                   <button
                     onClick={() => setIsKeyQuestion(!isKeyQuestion)}
                     className={`
-                      w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 
+                      w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2
                       transition-colors duration-150
                       ${isKeyQuestion
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-400'
+                        ? 'bg-orange-500/20 border-orange-500 text-orange-600 dark:text-orange-400'
                         : 'bg-card/60 border-border text-text-muted'}
                     `}
                   >

@@ -8,6 +8,7 @@ import { useChannelStore } from '../stores/channelStore';
 import { joinLobby, leaveLobby, onChannelCreated, offChannelCreated } from '../lib/socket';
 import type { Channel } from '../types';
 const statusFilters = [
+  { value: '', label: '全部' },
   { value: 'active', label: '进行中' },
   { value: 'ended', label: '已结束' },
 ] as const;
@@ -22,40 +23,49 @@ const difficultyFilters = [
 
 export default function LobbyPage() {
   const navigate = useNavigate();
-  const { channels, isLoadingList, fetchChannels, totalPages, prependChannel } = useChannelStore();
-  const [status, setStatus] = useState('active');
+  const { channels, fetchChannels, totalPages, prependChannel } = useChannelStore();
+  const [status, setStatus] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const loadChannels = useCallback(() => {
-    fetchChannels({
-      status,
-      search: search || undefined,
-      difficulty: difficulty || undefined,
-      page,
-    });
-  }, [fetchChannels, status, search, difficulty, page]);
+  const loadChannels = useCallback(async () => {
+    // Only show loading skeleton on first load (when channels list is empty)
+    const shouldShowLoading = channels.length === 0;
+    if (shouldShowLoading) setIsLoading(true);
+    
+    try {
+      await fetchChannels({
+        status: status || undefined,
+        search: search || undefined,
+        difficulty: difficulty || undefined,
+        page,
+      });
+      setIsInitialized(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchChannels, status, search, difficulty, page, channels.length]);
 
   useEffect(() => {
     loadChannels();
   }, [loadChannels]);
 
   // Re-fetch when page becomes visible (e.g. returning from a channel)
+  // Silent refresh - keep existing data, update in background
   useEffect(() => {
     function handleVisibility() {
       if (document.visibilityState === 'visible') {
-        loadChannels();
+        // Silent refresh - don't set loading state
+        fetchChannels({ status: status || undefined, search: search || undefined, difficulty: difficulty || undefined, page });
       }
     }
     document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', loadChannels);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', loadChannels);
-    };
-  }, [loadChannels]);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [fetchChannels, status, search, difficulty, page]);
 
   // Debounced search
   useEffect(() => {
@@ -67,10 +77,13 @@ export default function LobbyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
+  // Show skeleton only on initial load (when channels list is empty)
+  const showSkeleton = isLoading && !isInitialized;
+
   // Listen for new channels in lobby (only when viewing active channels on page 1)
   useEffect(() => {
     // Only join lobby when viewing active channels without filters
-    const shouldListen = status === 'active' && !search && !difficulty && page === 1;
+    const shouldListen = (status === '' || status === 'active') && !search && !difficulty && page === 1;
 
     if (shouldListen) {
       joinLobby();
@@ -118,7 +131,27 @@ export default function LobbyPage() {
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Status tabs */}
+      <div className="flex gap-1 mb-4 bg-surface/60 rounded-xl p-1">
+        {statusFilters.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => {
+              setStatus(f.value);
+              setPage(1);
+            }}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200 ease-out cursor-pointer ${
+              status === f.value
+                ? 'bg-card text-text shadow-sm'
+                : 'text-text-muted hover:text-text'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Difficulty filters */}
       {showFilters && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -126,62 +159,34 @@ export default function LobbyPage() {
           exit={{ opacity: 0, height: 0 }}
           className="mb-4 overflow-hidden"
         >
-          <div className="glass-card p-4 space-y-3">
-            {/* Status filters */}
-            <div>
-              <span className="text-xs text-text-muted font-medium block mb-2">
-                状态
-              </span>
-              <div className="flex gap-2 flex-wrap">
-                {statusFilters.map((f) => (
-                  <button
-                    key={f.value}
-                    onClick={() => {
-                      setStatus(f.value);
-                      setPage(1);
-                    }}
-                    className={`badge cursor-pointer transition-all duration-200 ease-out ${
-                      status === f.value
-                        ? 'bg-primary text-white'
-                        : 'bg-card text-text-muted hover:text-text'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Difficulty filters */}
-            <div>
-              <span className="text-xs text-text-muted font-medium block mb-2">
-                难度
-              </span>
-              <div className="flex gap-2 flex-wrap">
-                {difficultyFilters.map((f) => (
-                  <button
-                    key={f.value}
-                    onClick={() => {
-                      setDifficulty(f.value);
-                      setPage(1);
-                    }}
-                    className={`badge cursor-pointer transition-all duration-200 ease-out ${
-                      difficulty === f.value
-                        ? 'bg-primary text-white'
-                        : 'bg-card text-text-muted hover:text-text'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+          <div className="glass-card p-4">
+            <span className="text-xs text-text-muted font-medium block mb-2">
+              难度
+            </span>
+            <div className="flex gap-2 flex-wrap">
+              {difficultyFilters.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => {
+                    setDifficulty(f.value);
+                    setPage(1);
+                  }}
+                  className={`badge cursor-pointer transition-all duration-200 ease-out ${
+                    difficulty === f.value
+                      ? 'bg-primary text-white'
+                      : 'bg-card text-text-muted hover:text-text'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           </div>
         </motion.div>
       )}
 
       {/* Channel grid */}
-      {isLoadingList ? (
+      {showSkeleton ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <ChannelCardSkeleton key={i} />

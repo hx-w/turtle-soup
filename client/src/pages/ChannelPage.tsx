@@ -7,24 +7,19 @@ import { useAuthStore } from '../stores/authStore';
 import { useChannelData } from '../hooks/useChannelData';
 import { useChannelSocket } from '../hooks/useChannelSocket';
 import { useDiscussion } from '../hooks/useDiscussion';
-import { api } from '../lib/api';
 import ChannelHeader from '../components/channel/ChannelHeader';
 import SurfacePanel from '../components/channel/SurfacePanel';
 import ActionButtons from '../components/channel/ActionButtons';
 import ChannelTabs from '../components/channel/ChannelTabs';
 import type { TabKey } from '../components/channel/ChannelTabs';
 import PlayerInputPanel from '../components/channel/PlayerInputPanel';
-import AnswerDrawer from '../components/channel/AnswerDrawer';
 import DiscussionPanel from '../components/channel/DiscussionPanel';
 import ChatInput from '../components/channel/ChatInput';
 import ConfirmDialog from '../components/ConfirmDialog';
 import QuestionBubble from '../components/QuestionBubble';
 import TruthReveal from '../components/TruthReveal';
 import OnlineUsers from '../components/OnlineUsers';
-import StatsPanel from '../components/StatsPanel';
-import Timeline from '../components/Timeline';
-import RatingStars from '../components/RatingStars';
-import type { TimelineEvent } from '../types';
+import StatsModal from '../components/StatsModal';
 
 export default function ChannelPage() {
   const { id: channelId } = useParams<{ id: string }>();
@@ -42,11 +37,9 @@ export default function ChannelPage() {
 
   const discussion = useDiscussion(channelId);
 
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  const [statsTab, setStatsTab] = useState<'stats' | 'timeline'>('stats');
-
   // UI state
   const [activeTab, setActiveTab] = useState<TabKey>('qa');
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const [surfaceCollapsed, setSurfaceCollapsed] = useState(false);
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [showTruth, setShowTruth] = useState(false);
@@ -57,16 +50,6 @@ export default function ChannelPage() {
 
   const timelineRef = useRef<HTMLDivElement>(null);
 
-  const loadTimeline = useCallback(async () => {
-    if (!channelId) return;
-    try {
-      const data = await api.get<TimelineEvent[]>(`/channels/${channelId}/timeline`);
-      setTimeline(data);
-    } catch {
-      // Timeline not critical
-    }
-  }, [channelId]);
-
   // Derived
   const answeredCount = questions.filter((q) => q.status === 'answered').length;
   const hasPending = questions.some(
@@ -74,7 +57,7 @@ export default function ChannelPage() {
   );
   const isActive = channel?.status === 'active' && !channelEnded;
   const isHostOrCreator = myRole === 'host' || myRole === 'creator';
-  const pendingQuestions = questions.filter((q) => q.status === 'pending');
+
 
   // Scroll to bottom on new questions
   const scrollToBottom = useCallback(() => {
@@ -206,7 +189,10 @@ export default function ChannelPage() {
         onReveal={() => setConfirmReveal(true)}
         onEnd={() => setConfirmEnd(true)}
         onViewTruth={() => setShowTruth(true)}
-        onViewStats={loadStats}
+        onViewStats={() => {
+          loadStats();
+          setShowStatsModal(true);
+        }}
       />
 
       {/* Tabs */}
@@ -239,16 +225,10 @@ export default function ChannelPage() {
                   currentUserId={user?.id}
                   isHost={isHostOrCreator}
                   onWithdraw={isActive ? handleWithdraw : undefined}
+                  onAnswer={isActive && isHostOrCreator ? handleAnswer : undefined}
                 />
               ))}
           </div>
-
-          {isActive && isHostOrCreator && pendingQuestions.length > 0 && (
-            <AnswerDrawer
-              pendingQuestions={pendingQuestions}
-              onAnswer={handleAnswer}
-            />
-          )}
 
           {isActive && myRole === 'player' && (
             <PlayerInputPanel
@@ -280,50 +260,19 @@ export default function ChannelPage() {
         </>
       )}
 
-      {channelEnded && (
-        <div className="flex-shrink-0 border-t border-border bg-surface/50 overflow-y-auto max-h-[50vh]">
-          <div className="flex border-b border-border">
-            <button
-              onClick={() => setStatsTab('stats')}
-              className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-                statsTab === 'stats' ? 'text-primary border-b-2 border-primary' : 'text-text-muted'
-              }`}
-            >
-              统计
-            </button>
-            <button
-              onClick={() => {
-                setStatsTab('timeline');
-                if (timeline.length === 0) loadTimeline();
-              }}
-              className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-                statsTab === 'timeline' ? 'text-primary border-b-2 border-primary' : 'text-text-muted'
-              }`}
-            >
-              时间线
-            </button>
-          </div>
-
-          <div className="p-4">
-            {statsTab === 'stats' && channelStats && <StatsPanel stats={channelStats} />}
-            {statsTab === 'timeline' && <Timeline events={timeline} />}
-          </div>
-
-          {statsTab === 'stats' && myRole === 'player' && channelStats && (
-            <div className="p-4 pt-0">
-              <RatingStars
-                channelId={channel.id}
-                existingRating={channelStats.myRating ?? undefined}
-                averageRating={channelStats.averageRating}
-                ratingCount={channelStats.ratingCount}
-                onSubmit={() => loadStats()}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Overlays / Modals */}
+      <AnimatePresence>
+        {showStatsModal && channelId && (
+          <StatsModal
+            channelId={channelId}
+            stats={channelStats}
+            myRole={myRole}
+            onClose={() => setShowStatsModal(false)}
+            onStatsReload={loadStats}
+          />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showOnlineUsers && (
           <OnlineUsers
