@@ -5,11 +5,11 @@ interface AvatarProps {
 }
 
 /**
- * Generates a deterministic avatar using DiceBear Bottts style.
- * Falls back to a colored circle with initials if images fail to load.
+ * Generates a deterministic avatar using DiceBear Thumbs style.
+ * Consistent with profile page and channel components.
  */
 export default function Avatar({ seed, size = 32, className = '' }: AvatarProps) {
-  const url = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(seed)}&size=${size}`;
+  const url = `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
 
   return (
     <img

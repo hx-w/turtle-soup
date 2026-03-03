@@ -138,6 +138,19 @@
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
 
+  .btn-action {
+    @apply flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5
+           text-xs font-medium rounded-lg border
+           transition-colors duration-200 ease-out cursor-pointer;
+  }
+
+  .btn-danger {
+    @apply bg-no/10 hover:bg-no/20 text-no border-no/30
+           font-heading font-semibold rounded-xl px-6 py-3
+           transition-all duration-200 ease-out cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
   .skeleton {
     @apply animate-pulse bg-border/40 rounded;
   }

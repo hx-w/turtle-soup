@@ -67,6 +67,7 @@ export default function TruthReveal({ truth, onClose }: TruthRevealProps) {
           <div className="relative px-6 pb-6 pt-2">
             <button
               onClick={onClose}
+              aria-label="关闭汤底"
               className="w-full flex items-center justify-center gap-2 px-6 py-3
                          bg-primary/20 hover:bg-primary/30 border border-primary/40
                          text-primary-light rounded-xl font-medium

@@ -10,6 +10,7 @@ export const SocketEvents = {
   CHANNEL_USER_JOINED: 'channel:user_joined',
   CHANNEL_USER_LEFT: 'channel:user_left',
   CHANNEL_ENDED: 'channel:ended',
+  CHANNEL_UPDATED: 'channel:updated',
   QUESTION_NEW: 'question:new',
   QUESTION_ANSWERED: 'question:answered',
   QUESTION_WITHDRAWN: 'question:withdrawn',

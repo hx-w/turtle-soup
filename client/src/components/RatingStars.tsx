@@ -79,7 +79,7 @@ export default function RatingStars({
           {[1, 2, 3, 4, 5].map((i) => (
             <motion.button
               key={i}
-              whileHover={{ scale: 1.15 }}
+              whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.9 }}
               onMouseEnter={() => !submitted && setHoverScore(i)}
               onMouseLeave={() => setHoverScore(0)}

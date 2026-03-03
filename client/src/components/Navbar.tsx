@@ -22,7 +22,7 @@ export default function Navbar() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 glass-nav safe-area-bottom"
+      className="fixed bottom-0 left-0 right-0 z-20 glass-nav safe-area-bottom"
       role="navigation"
       aria-label="Main navigation"
     >

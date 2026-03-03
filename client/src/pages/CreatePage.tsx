@@ -8,6 +8,8 @@ import {
   BarChart3,
   Tag,
   Soup,
+  Plus,
+  X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
@@ -21,7 +23,10 @@ const difficultyOptions = [
   { value: 'hell', label: '地狱' },
 ] as const;
 
-const tagOptions = ['经典', '恐怖', '温情', '脑洞', '日常'] as const;
+const tagOptions = ['本格', '变格', '恐怖', '欢乐', '猎奇', '温情', '脑洞', '日常'] as const;
+
+const MAX_TAGS = 5;
+const MAX_TAG_LENGTH = 10;
 
 export default function CreatePage() {
   const navigate = useNavigate();
@@ -38,6 +43,7 @@ export default function CreatePage() {
   const [aiHostDelayMinutes, setAiHostDelayMinutes] = useState(1);
   const [aiHintEnabled, setAiHintEnabled] = useState(false);
   const [aiHintPerPlayer, setAiHintPerPlayer] = useState(3);
+  const [customTagInput, setCustomTagInput] = useState('');
 
   useEffect(() => {
     api.get<{ available: boolean }>('/ai/status')
@@ -47,8 +53,19 @@ export default function CreatePage() {
 
   const toggleTag = (tag: string) => {
     setTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : prev.length >= MAX_TAGS
+          ? prev
+          : [...prev, tag],
     );
+  };
+
+  const addCustomTag = () => {
+    const trimmed = customTagInput.trim().slice(0, MAX_TAG_LENGTH);
+    if (!trimmed || tags.includes(trimmed) || tags.length >= MAX_TAGS) return;
+    setTags((prev) => [...prev, trimmed]);
+    setCustomTagInput('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -225,6 +242,7 @@ export default function CreatePage() {
               <label className="flex items-center gap-2 text-sm font-medium text-text-muted mb-2">
                 <Tag size={14} />
                 分类标签
+                <span className="text-xs font-normal ml-1">({tags.length}/{MAX_TAGS})</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {tagOptions.map((tag) => (
@@ -232,16 +250,67 @@ export default function CreatePage() {
                     key={tag}
                     type="button"
                     onClick={() => toggleTag(tag)}
+                    disabled={!tags.includes(tag) && tags.length >= MAX_TAGS}
                     className={`badge cursor-pointer transition-all duration-200 ease-out text-sm px-3 py-1 ${
                       tags.includes(tag)
                         ? 'bg-primary text-white'
-                        : 'bg-card text-text-muted hover:text-text border border-border'
+                        : tags.length >= MAX_TAGS
+                          ? 'bg-card text-text-muted/40 border border-border cursor-not-allowed'
+                          : 'bg-card text-text-muted hover:text-text border border-border'
                     }`}
                   >
                     {tag}
                   </button>
                 ))}
               </div>
+              {/* Custom tag input */}
+              <div className="flex items-center gap-2 mt-2.5">
+                <input
+                  type="text"
+                  value={customTagInput}
+                  onChange={(e) => setCustomTagInput(e.target.value.slice(0, MAX_TAG_LENGTH))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); } }}
+                  placeholder="自定义标签"
+                  className="input-field !py-2 text-sm flex-1"
+                  disabled={tags.length >= MAX_TAGS}
+                  maxLength={MAX_TAG_LENGTH}
+                />
+                <button
+                  type="button"
+                  onClick={addCustomTag}
+                  disabled={!customTagInput.trim() || tags.length >= MAX_TAGS}
+                  className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2
+                             text-sm font-medium rounded-xl border border-primary/30
+                             text-primary-light hover:bg-primary/10
+                             transition-colors duration-200 cursor-pointer
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Plus size={14} />
+                  添加
+                </button>
+              </div>
+              {/* Selected custom tags (non-preset) */}
+              {tags.filter((t) => !(tagOptions as readonly string[]).includes(t)).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {tags
+                    .filter((t) => !(tagOptions as readonly string[]).includes(t))
+                    .map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 badge bg-accent/15 text-accent text-sm px-2.5 py-0.5"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+                          className="hover:text-no transition-colors cursor-pointer"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
 
             {/* AI Settings */}

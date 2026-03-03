@@ -26,6 +26,7 @@ interface UseChannelSocketCallbacks {
   onRoleChanged: (userId: string) => void;
   onChannelEnded: (truth?: string) => void;
   onOnlineUsersUpdate: (users: LocalOnlineUser[]) => void;
+  onChannelUpdated?: (data: { channelId: string; surface: string }) => void;
   onNewChatMessage?: (message: ChatMessage) => void;
   onAiAnswered?: (data: { question: Question; channelId: string }) => void;
   onAiCorrected?: (data: { question: Question; channelId: string; modifiedBy: string }) => void;
@@ -104,6 +105,11 @@ export function useChannelSocket(
       }
     }
 
+    function handleChannelUpdated(data: any) {
+      if (data.channelId && data.channelId !== channelId) return;
+      callbacks.onChannelUpdated?.(data);
+    }
+
     function handleNewChat(data: any) {
       if (data.channelId && data.channelId !== channelId) return;
       const msg: ChatMessage = data.message || data;
@@ -152,6 +158,7 @@ export function useChannelSocket(
     s.on('question:withdrawn', handleWithdrawn);
     s.on('role:changed', handleRoleChanged);
     s.on('channel:ended', handleChannelEnded);
+    s.on('channel:updated', handleChannelUpdated);
     s.on('channel:user_joined', handleUserJoined);
     s.on('channel:user_left', handleUserLeft);
     s.on('chat:new', handleNewChat);
@@ -169,6 +176,7 @@ export function useChannelSocket(
       s.off('question:withdrawn', handleWithdrawn);
       s.off('role:changed', handleRoleChanged);
       s.off('channel:ended', handleChannelEnded);
+      s.off('channel:updated', handleChannelUpdated);
       s.off('channel:user_joined', handleUserJoined);
       s.off('channel:user_left', handleUserLeft);
       s.off('chat:new', handleNewChat);

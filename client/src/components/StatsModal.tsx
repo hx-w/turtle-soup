@@ -89,6 +89,7 @@ export default function StatsModal({
           </h2>
           <button
             onClick={onClose}
+            aria-label="关闭"
             className="p-2 rounded-xl hover:bg-surface text-text-muted
                        hover:text-text transition-colors duration-200 cursor-pointer"
           >

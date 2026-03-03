@@ -18,6 +18,7 @@ import PlayerInputPanel from '../components/channel/PlayerInputPanel';
 import DiscussionPanel from '../components/channel/DiscussionPanel';
 import type { DiscussionPanelHandle } from '../components/channel/DiscussionPanel';
 import ChatInput from '../components/channel/ChatInput';
+import EditSoupModal from '../components/channel/EditSoupModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import QuestionBubble from '../components/QuestionBubble';
 import TruthReveal from '../components/TruthReveal';
@@ -33,9 +34,11 @@ export default function ChannelPage() {
     channel, questions, myRole, loading, error, onlineUsers,
     channelEnded, truthText, channelStats,
     loadStats, handleSubmitQuestion, handleWithdraw, handleAnswer,
-    handleRevealTruth, handleEndChannel,
+    handleRevealTruth, handleEndChannel, handleDeleteChannel,
     addQuestion, markAnswered, removeQuestion,
     handleSocketRoleChanged, handleSocketChannelEnded, updateOnlineUsers,
+    handleEditSoup,
+    handleSocketChannelUpdated,
     // AI
     aiProgress, aiReview, setAiReview, aiReviewLoading, setAiReviewLoading,
     hints, hintRemaining, hintLoading,
@@ -56,6 +59,8 @@ export default function ChannelPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmReveal, setConfirmReveal] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [showEditSoup, setShowEditSoup] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Scroll FAB state
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -154,6 +159,7 @@ export default function ChannelPage() {
       handleSocketChannelEnded(truth);
       if (truth) setShowTruth(true);
     },
+    onChannelUpdated: handleSocketChannelUpdated,
     onOnlineUsersUpdate: updateOnlineUsers,
     onNewChatMessage: (msg) => {
       // Don't add own messages (already added optimistically)
@@ -214,6 +220,17 @@ export default function ChannelPage() {
     }
   }
 
+  async function onDeleteChannel() {
+    try {
+      await handleDeleteChannel();
+      setConfirmDelete(false);
+      navigate('/');
+    } catch (err: any) {
+      toast.error(err?.message || '删除失败');
+      setConfirmDelete(false);
+    }
+  }
+
   // Loading / Error states
   if (loading) {
     return (
@@ -249,7 +266,12 @@ export default function ChannelPage() {
         onShowOnlineUsers={() => setShowOnlineUsers(true)}
       />
 
-      <SurfacePanel surface={channel.surface} />
+      <SurfacePanel
+        surface={channel.surface}
+        isCreator={myRole === 'creator'}
+        isActive={isActive}
+        onEdit={() => setShowEditSoup(true)}
+      />
 
       <ActionButtons
         isActive={isActive}
@@ -263,6 +285,7 @@ export default function ChannelPage() {
           loadStats();
           setShowStatsModal(true);
         }}
+        onDelete={() => setConfirmDelete(true)}
       />
 
       {/* AI Progress Bar */}
@@ -436,6 +459,17 @@ export default function ChannelPage() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showEditSoup && channel && (
+          <EditSoupModal
+            surface={channel.surface}
+            truth={truthText || ''}
+            onSave={handleEditSoup}
+            onClose={() => setShowEditSoup(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {confirmReveal && (
           <ConfirmDialog
             title="确认查看汤底"
@@ -456,6 +490,19 @@ export default function ChannelPage() {
             variant="danger"
             onConfirm={onEndChannel}
             onCancel={() => setConfirmEnd(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmDelete && myRole === 'creator' && (
+          <ConfirmDialog
+            title="确认删除频道"
+            message="删除后该频道将不再对任何人可见。此操作不可撤销。"
+            confirmLabel="删除频道"
+            variant="danger"
+            onConfirm={onDeleteChannel}
+            onCancel={() => setConfirmDelete(false)}
           />
         )}
       </AnimatePresence>

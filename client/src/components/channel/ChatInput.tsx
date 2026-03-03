@@ -87,6 +87,7 @@ export default function ChatInput({ isHost, isActive, channelEnded, onSend }: Ch
         <button
           onClick={handleSend}
           disabled={!text.trim() || sending}
+          aria-label="发送消息"
           className="flex-shrink-0 w-11 h-11 flex items-center justify-center
                      bg-primary hover:bg-primary-light disabled:opacity-40
                      disabled:cursor-not-allowed rounded-xl text-white

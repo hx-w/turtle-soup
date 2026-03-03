@@ -59,6 +59,7 @@ export default function ChannelHeader({
 
         <button
           onClick={onShowOnlineUsers}
+          aria-label="在线用户"
           className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
                      bg-surface hover:bg-card border border-border
                      text-text-muted text-sm transition-colors duration-200 cursor-pointer"

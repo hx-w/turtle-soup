@@ -16,10 +16,22 @@ export async function generateHint(channelId: string): Promise<string | null> {
     });
 
     const ctx = await loadGameContext(channelId);
+
+    // Fetch all public hints to avoid generating duplicates
+    const publicHints = await prisma.aiHint.findMany({
+      where: { channelId, isPublic: true },
+      orderBy: { createdAt: 'asc' },
+      select: { content: true },
+    });
+    const existingHints = publicHints.length > 0
+      ? publicHints.map((h, i) => `${i + 1}. ${h.content}`).join('\n')
+      : '（暂无已公开线索）';
+
     const prompt = fillTemplate(HINT_PROMPT, {
       surface: ctx.surface,
       truth: ctx.truth,
       history: formatHistory(ctx.answeredQuestions),
+      existingHints,
       progress: channel.aiProgress.toFixed(1),
     });
 

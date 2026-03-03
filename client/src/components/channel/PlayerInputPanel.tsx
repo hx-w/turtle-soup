@@ -61,6 +61,7 @@ export default function PlayerInputPanel({
           <button
             onClick={onSubmit}
             disabled={!questionText.trim() || submitting}
+            aria-label="提交问题"
             className="flex-shrink-0 w-11 h-11 flex items-center justify-center
                        bg-primary hover:bg-primary-light disabled:opacity-40
                        disabled:cursor-not-allowed rounded-xl text-white

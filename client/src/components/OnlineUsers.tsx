@@ -52,6 +52,7 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
             </div>
             <button
               onClick={onClose}
+              aria-label="关闭在线用户"
               className="p-1.5 rounded-lg hover:bg-surface text-text-muted
                          hover:text-text transition-colors duration-200 cursor-pointer"
             >

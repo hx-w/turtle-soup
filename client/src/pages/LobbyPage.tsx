@@ -21,11 +21,14 @@ const difficultyFilters = [
   { value: 'hell', label: '地狱' },
 ] as const;
 
+const tagFilters = ['本格', '变格', '恐怖', '欢乐', '猎奇', '温情', '脑洞', '日常'] as const;
+
 export default function LobbyPage() {
   const navigate = useNavigate();
   const { channels, fetchChannels, totalPages, prependChannel } = useChannelStore();
   const [status, setStatus] = useState('');
   const [difficulty, setDifficulty] = useState('');
+  const [tag, setTag] = useState('');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -42,13 +45,14 @@ export default function LobbyPage() {
         status: status || undefined,
         search: search || undefined,
         difficulty: difficulty || undefined,
+        tag: tag || undefined,
         page,
       });
       setIsInitialized(true);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchChannels, status, search, difficulty, page, channels.length]);
+  }, [fetchChannels, status, search, difficulty, tag, page, channels.length]);
 
   useEffect(() => {
     loadChannels();
@@ -60,12 +64,12 @@ export default function LobbyPage() {
     function handleVisibility() {
       if (document.visibilityState === 'visible') {
         // Silent refresh - don't set loading state
-        fetchChannels({ status: status || undefined, search: search || undefined, difficulty: difficulty || undefined, page });
+        fetchChannels({ status: status || undefined, search: search || undefined, difficulty: difficulty || undefined, tag: tag || undefined, page });
       }
     }
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [fetchChannels, status, search, difficulty, page]);
+  }, [fetchChannels, status, search, difficulty, tag, page]);
 
   // Debounced search
   useEffect(() => {
@@ -83,7 +87,7 @@ export default function LobbyPage() {
   // Listen for new channels in lobby (only when viewing active channels on page 1)
   useEffect(() => {
     // Only join lobby when viewing active channels without filters
-    const shouldListen = (status === '' || status === 'active') && !search && !difficulty && page === 1;
+    const shouldListen = (status === '' || status === 'active') && !search && !difficulty && !tag && page === 1;
 
     if (shouldListen) {
       joinLobby();
@@ -98,7 +102,7 @@ export default function LobbyPage() {
         offChannelCreated(handleNewChannel);
       };
     }
-  }, [status, search, difficulty, page, prependChannel]);
+  }, [status, search, difficulty, tag, page, prependChannel]);
   return (
     <div className="max-w-5xl mx-auto px-4 py-4">
       {/* Search bar */}
@@ -159,27 +163,59 @@ export default function LobbyPage() {
           exit={{ opacity: 0, height: 0 }}
           className="mb-4 overflow-hidden"
         >
-          <div className="glass-card p-4">
-            <span className="text-xs text-text-muted font-medium block mb-2">
-              难度
-            </span>
-            <div className="flex gap-2 flex-wrap">
-              {difficultyFilters.map((f) => (
+          <div className="glass-card p-4 space-y-3">
+            <div>
+              <span className="text-xs text-text-muted font-medium block mb-2">
+                难度
+              </span>
+              <div className="flex gap-2 flex-wrap">
+                {difficultyFilters.map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => {
+                      setDifficulty(f.value);
+                      setPage(1);
+                    }}
+                    className={`badge cursor-pointer transition-all duration-200 ease-out ${
+                      difficulty === f.value
+                        ? 'bg-primary text-white'
+                        : 'bg-card text-text-muted hover:text-text'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="text-xs text-text-muted font-medium block mb-2">
+                标签
+              </span>
+              <div className="flex gap-2 flex-wrap">
                 <button
-                  key={f.value}
-                  onClick={() => {
-                    setDifficulty(f.value);
-                    setPage(1);
-                  }}
+                  onClick={() => { setTag(''); setPage(1); }}
                   className={`badge cursor-pointer transition-all duration-200 ease-out ${
-                    difficulty === f.value
+                    tag === ''
                       ? 'bg-primary text-white'
                       : 'bg-card text-text-muted hover:text-text'
                   }`}
                 >
-                  {f.label}
+                  全部标签
                 </button>
-              ))}
+                {tagFilters.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => { setTag(t); setPage(1); }}
+                    className={`badge cursor-pointer transition-all duration-200 ease-out ${
+                      tag === t
+                        ? 'bg-primary text-white'
+                        : 'bg-card text-text-muted hover:text-text'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </motion.div>
@@ -246,7 +282,7 @@ export default function LobbyPage() {
         className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-primary hover:bg-primary-light
                    text-white shadow-lg shadow-primary/30 flex items-center justify-center
                    transition-all duration-200 ease-out cursor-pointer md:hidden
-                   hover:scale-105 active:scale-95"
+                   hover:shadow-xl hover:shadow-primary/40 active:scale-95"
         aria-label="创建谜题"
       >
         <Plus size={24} />

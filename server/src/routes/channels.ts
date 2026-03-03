@@ -22,7 +22,7 @@ const createSchema = z.object({
   truth: z.string().min(1).max(5000),
   maxQuestions: z.number().int().min(0).default(0),
   difficulty: z.enum(['easy', 'medium', 'hard', 'hell']).default('medium'),
-  tags: z.array(z.string()).default([]),
+  tags: z.array(z.string().min(1).max(10)).max(5).default([]),
   aiHostEnabled: z.boolean().default(false),
   aiHostDelayMinutes: z.number().int().min(1).max(30).default(1),
   aiHintEnabled: z.boolean().default(false),
@@ -79,6 +79,58 @@ router.post('/', authRequired, validate(createSchema), async (req: Request, res:
     res.json(channel);
   } catch (err) {
     logger.error('Channel creation failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Update channel (surface/truth) — creator only, active channels only
+const updateSchema = z.object({
+  surface: z.string().min(1).max(2000).optional(),
+  truth: z.string().min(1).max(5000).optional(),
+});
+
+router.patch('/:id', authRequired, validate(updateSchema), async (req: Request, res: Response) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user!.userId;
+    const { surface, truth } = req.body;
+
+    if (!surface && !truth) {
+      res.status(400).json({ error: '至少修改一项内容' });
+      return;
+    }
+
+    const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+    if (!channel || channel.status !== 'active') {
+      res.status(400).json({ error: '频道不存在或已结束' });
+      return;
+    }
+
+    if (channel.creatorId !== userId) {
+      res.status(403).json({ error: '只有创建者可以修改' });
+      return;
+    }
+
+    const data: Record<string, string> = {};
+    if (surface) data.surface = surface;
+    if (truth) data.truth = truth;
+
+    const updated = await prisma.channel.update({
+      where: { id: channelId },
+      data,
+      select: { id: true, surface: true, truth: true },
+    });
+
+    // Broadcast update — only include surface for all players; truth is private
+    const io = getIO();
+    io.to(channelId).emit(SocketEvents.CHANNEL_UPDATED, {
+      channelId,
+      surface: updated.surface,
+    });
+
+    res.json(updated);
+  } catch (err) {
+    logger.error('Channel update failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -479,6 +531,38 @@ router.post('/:id/end', authRequired, async (req: Request, res: Response) => {
     res.json(channel);
   } catch (err) {
     logger.error('Channel end failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Delete (archive) channel — creator only, ended channels only
+router.delete('/:id', authRequired, async (req: Request, res: Response) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user!.userId;
+
+    const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+    if (!channel) {
+      res.status(404).json({ error: '频道不存在' });
+      return;
+    }
+    if (channel.creatorId !== userId) {
+      res.status(403).json({ error: '只有创建者可以删除频道' });
+      return;
+    }
+    if (channel.status !== 'ended') {
+      res.status(400).json({ error: '只能删除已结束的频道' });
+      return;
+    }
+
+    await prisma.channel.update({
+      where: { id: channelId },
+      data: { status: 'archived' },
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Channel deletion failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });
   }
 });

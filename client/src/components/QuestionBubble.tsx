@@ -159,7 +159,7 @@ export default function QuestionBubble({
                       className={`
                         flex-1 flex items-center justify-center gap-1.5
                         py-2.5 px-2 rounded-xl border-2
-                        text-xs font-medium transition-all duration-150
+                        text-xs font-medium transition-all duration-200
                         touch-manipulation cursor-pointer
                         ${isSelected ? config.selectedColor : config.color}
                         disabled:opacity-50
@@ -192,7 +192,7 @@ export default function QuestionBubble({
                           onClick={() => setIsKeyQuestion(!isKeyQuestion)}
                           className={`
                             flex items-center gap-1.5 py-2.5 px-3 rounded-xl border-2
-                            text-xs font-medium transition-all duration-150
+                            text-xs font-medium transition-all duration-200
                             touch-manipulation cursor-pointer
                             ${isKeyQuestion
                               ? 'bg-orange-500/15 border-orange-500 text-orange-600 dark:text-orange-400'
@@ -276,7 +276,8 @@ export default function QuestionBubble({
         {isPending && isOwn && !isHost && onWithdraw && (
           <button
             onClick={() => onWithdraw(question.id)}
-            className="mt-2 text-xs text-text-muted hover:text-no transition-colors cursor-pointer"
+            aria-label="撤回问题"
+            className="mt-2 text-xs text-text-muted hover:text-no transition-colors duration-200 cursor-pointer"
           >
             撤回问题
           </button>

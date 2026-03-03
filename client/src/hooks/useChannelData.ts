@@ -213,6 +213,42 @@ export function useChannelData(
     loadStats();
   }, [channelId, loadStats]);
 
+  const handleDeleteChannel = useCallback(async () => {
+    if (!channelId) return;
+    await api.del(`/channels/${channelId}`);
+    toast.success('频道已删除');
+  }, [channelId]);
+
+  const handleEditSoup = useCallback(
+    async (surface: string, truth: string) => {
+      if (!channelId) return;
+      const body: Record<string, string> = {};
+      if (channel && surface !== channel.surface) body.surface = surface;
+      if (channel && truth !== (channel.truth ?? '')) body.truth = truth;
+      if (Object.keys(body).length === 0) return;
+
+      const updated = await api.patch<{ id: string; surface: string; truth: string }>(
+        `/channels/${channelId}`,
+        body,
+      );
+      setChannel((prev) =>
+        prev ? { ...prev, surface: updated.surface, truth: updated.truth } : prev,
+      );
+      if (updated.truth) setTruthText(updated.truth);
+      toast.success('更新成功');
+    },
+    [channelId, channel],
+  );
+
+  const handleSocketChannelUpdated = useCallback(
+    (data: { channelId: string; surface: string }) => {
+      setChannel((prev) =>
+        prev ? { ...prev, surface: data.surface } : prev,
+      );
+    },
+    [],
+  );
+
   // Socket callback helpers
   const addQuestion = useCallback((q: Question) => {
     setQuestions((prev) => {
@@ -284,13 +320,18 @@ export function useChannelData(
   const handleAiCorrect = useCallback(
     async (qid: string, answer: string, isKey: boolean) => {
       if (!channelId) return;
-      const updated = await api.put<Question>(
-        `/channels/${channelId}/questions/${qid}/ai-correct`,
-        { answer, isKeyQuestion: isKey },
-      );
-      setQuestions((prev) =>
-        prev.map((q) => (q.id === qid ? { ...q, ...updated } : q)),
-      );
+      try {
+        const updated = await api.put<Question>(
+          `/channels/${channelId}/questions/${qid}/ai-correct`,
+          { answer, isKeyQuestion: isKey },
+        );
+        setQuestions((prev) =>
+          prev.map((q) => (q.id === qid ? { ...q, ...updated } : q)),
+        );
+      } catch (err: any) {
+        toast.error(err?.message || '修改AI回答失败');
+        throw err;
+      }
     },
     [channelId],
   );
@@ -421,7 +462,10 @@ export function useChannelData(
     handleAnswer,
     handleRevealTruth,
     handleEndChannel,
+    handleDeleteChannel,
+    handleEditSoup,
     // Socket callbacks
+    handleSocketChannelUpdated,
     addQuestion,
     markAnswered,
     removeQuestion,
