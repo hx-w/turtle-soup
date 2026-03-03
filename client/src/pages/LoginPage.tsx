@@ -61,7 +61,7 @@ export default function LoginPage() {
             <h1 className="font-heading font-bold text-3xl mt-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               海龟汤
             </h1>
-            <p className="text-text-muted text-sm mt-1">水平思考谜题</p>
+            <p className="text-text-muted text-sm mt-1">文字思考谜题</p>
           </div>
 
           {/* Error */}

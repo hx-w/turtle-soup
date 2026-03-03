@@ -109,7 +109,7 @@ export default function CreatePage() {
             </div>
             <div>
               <h1 className="font-heading font-bold text-xl">创建海龟汤</h1>
-              <p className="text-text-muted text-sm">编写你的水平思考谜题</p>
+              <p className="text-text-muted text-sm">编写你的文字思考谜题</p>
             </div>
           </div>
 

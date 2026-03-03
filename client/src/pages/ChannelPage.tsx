@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, AlertTriangle, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
-import AiProgressBar from '../components/ai/AiProgressBar';
-import HintsPanel from '../components/ai/HintsPanel';
+import HintsPanel, { type HintsPanelHandle } from '../components/ai/HintsPanel';
 import { toast } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import { useChannelData } from '../hooks/useChannelData';
@@ -65,9 +64,12 @@ export default function ChannelPage() {
   // Scroll FAB state
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+  // 用于追踪当前滚动元素的状态
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const discussionRef = useRef<DiscussionPanelHandle>(null);
+  const hintsRef = useRef<HintsPanelHandle>(null);
 
   // Derived
   const answeredCount = questions.filter((q) => q.status === 'answered').length;
@@ -89,48 +91,79 @@ export default function ChannelPage() {
     scrollToBottom();
   }, [questions, scrollToBottom]);
 
-  // Scroll FAB: track scroll position
-  const handleScroll = useCallback(() => {
-    const el =
-      activeTab === 'qa'
-        ? timelineRef.current
-        : discussionRef.current?.scrollRef;
-    if (!el) {
+  // 获取当前激活 tab 的滚动容器
+  const getScrollElement = useCallback(() => {
+    if (activeTab === 'qa') return timelineRef.current;
+    if (activeTab === 'discussion') return discussionRef.current?.scrollRef ?? null;
+    if (activeTab === 'hints') return hintsRef.current?.scrollRef ?? null;
+    return null;
+  }, [activeTab]);
+
+  // 当 activeTab 变化时，更新 scrollElement
+  useLayoutEffect(() => {
+    const el = getScrollElement();
+    setScrollElement(el);
+
+    // 延迟再次检查，确保 ref 已就绪
+    const timer = setTimeout(() => {
+      setScrollElement(getScrollElement());
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [activeTab, getScrollElement]);
+
+  // 监听 scrollElement 变化
+  useEffect(() => {
+    if (!scrollElement) {
       setShowScrollTop(false);
       setShowScrollBottom(false);
       return;
     }
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    setShowScrollTop(scrollTop > 200);
-    setShowScrollBottom(scrollHeight - scrollTop - clientHeight > 200);
-  }, [activeTab]);
 
+    const checkScroll = () => {
+      if (!scrollElement) return;
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      const canScroll = scrollHeight > clientHeight + 1;
+      setShowScrollTop(canScroll && scrollTop > 1);
+      setShowScrollBottom(canScroll && scrollHeight - scrollTop - clientHeight > 1);
+    };
+
+    scrollElement.addEventListener('scroll', checkScroll, { passive: true });
+    checkScroll(); // 立即检查一次
+
+    // 轮询作为后备机制（每 500ms 检查一次）
+    const interval = setInterval(checkScroll, 500);
+
+    return () => {
+      scrollElement.removeEventListener('scroll', checkScroll);
+      clearInterval(interval);
+    };
+  }, [scrollElement]);
+
+  // 内容变化时重新检查
   useEffect(() => {
-    const el =
-      activeTab === 'qa'
-        ? timelineRef.current
-        : discussionRef.current?.scrollRef;
-    if (!el) return;
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, [activeTab, handleScroll, questions.length, discussion.messages.length]);
+    if (!scrollElement) return;
+    const checkScroll = () => {
+      if (!scrollElement) return;
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      const canScroll = scrollHeight > clientHeight + 1;
+      setShowScrollTop(canScroll && scrollTop > 1);
+      setShowScrollBottom(canScroll && scrollHeight - scrollTop - clientHeight > 1);
+    };
+    // 多次延迟检查，确保 DOM 完全渲染
+    const timers = [50, 150, 300, 500].map(ms => setTimeout(checkScroll, ms));
+    return () => timers.forEach(clearTimeout);
+  }, [scrollElement, questions.length, discussion.messages.length, hints.length]);
 
   const scrollToTopFAB = useCallback(() => {
-    const el =
-      activeTab === 'qa'
-        ? timelineRef.current
-        : discussionRef.current?.scrollRef;
+    const el = getScrollElement();
     el?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeTab]);
+  }, [getScrollElement]);
 
   const scrollToBottomFAB = useCallback(() => {
-    const el =
-      activeTab === 'qa'
-        ? timelineRef.current
-        : discussionRef.current?.scrollRef;
+    const el = getScrollElement();
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [activeTab]);
+  }, [getScrollElement]);
 
   // Load discussion messages when tab is first opened
   const handleTabChange = useCallback(
@@ -264,6 +297,10 @@ export default function ChannelPage() {
         answeredCount={answeredCount}
         onlineUsersCount={onlineUsers.length}
         onShowOnlineUsers={() => setShowOnlineUsers(true)}
+        aiProgress={
+          channel.aiHostEnabled || channel.aiHintEnabled ? aiProgress : undefined
+        }
+        aiProgressFrozen={channelEnded}
       />
 
       <SurfacePanel
@@ -288,10 +325,7 @@ export default function ChannelPage() {
         onDelete={() => setConfirmDelete(true)}
       />
 
-      {/* AI Progress Bar */}
-      {(channel.aiHostEnabled || channel.aiHintEnabled) && (
-        <AiProgressBar progress={aiProgress} frozen={channelEnded} />
-      )}
+      {/* Tabs */}
 
       {/* Tabs */}
       <ChannelTabs
@@ -306,7 +340,8 @@ export default function ChannelPage() {
       {/* Tab Content */}
       {activeTab === 'hints' ? (
         <div className="flex-1 min-h-0">
-<HintsPanel
+          <HintsPanel
+            ref={hintsRef}
             hints={hints}
             myRemaining={hintRemaining}
             hintLoading={hintLoading}

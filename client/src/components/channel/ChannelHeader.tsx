@@ -1,6 +1,6 @@
-import { motion } from 'framer-motion';
 import { Users } from 'lucide-react';
 import type { Channel } from '../../types';
+import ProgressBar from '../ProgressBar';
 
 const difficultyLabels: Record<string, string> = {
   easy: '简单',
@@ -22,6 +22,10 @@ interface ChannelHeaderProps {
   answeredCount: number;
   onlineUsersCount: number;
   onShowOnlineUsers: () => void;
+  /** AI 破案进度 0-100 */
+  aiProgress?: number;
+  /** 游戏是否已结束 */
+  aiProgressFrozen?: boolean;
 }
 
 export default function ChannelHeader({
@@ -30,6 +34,8 @@ export default function ChannelHeader({
   answeredCount,
   onlineUsersCount,
   onShowOnlineUsers,
+  aiProgress,
+  aiProgressFrozen,
 }: ChannelHeaderProps) {
   return (
     <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-xl border-b border-border px-4 py-3">
@@ -71,25 +77,26 @@ export default function ChannelHeader({
 
       {channel.maxQuestions > 0 && (
         <div className="mt-2">
-          <div className="flex items-center justify-between text-xs text-text-muted mb-1">
-            <span>进度</span>
-            <span>
-              {answeredCount} / {channel.maxQuestions}
-            </span>
-          </div>
-          <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-primary rounded-full"
-              initial={{ width: 0 }}
-              animate={{
-                width: `${Math.min(
-                  (answeredCount / channel.maxQuestions) * 100,
-                  100,
-                )}%`,
-              }}
-              transition={{ duration: 0.4 }}
-            />
-          </div>
+          <ProgressBar
+            label="问题配额"
+            progress={(answeredCount / channel.maxQuestions) * 100}
+            valueText={`${answeredCount} / ${channel.maxQuestions}`}
+            variant="primary"
+            compact
+          />
+        </div>
+      )}
+
+      {/* AI 推理进度条 */}
+      {aiProgress !== undefined && (
+        <div className={channel.maxQuestions > 0 ? 'mt-1' : 'mt-2'}>
+          <ProgressBar
+            label="推理进度"
+            progress={aiProgress}
+            variant="gradient"
+            frozen={aiProgressFrozen}
+            compact
+          />
         </div>
       )}
     </header>
