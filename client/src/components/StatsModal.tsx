@@ -17,6 +17,7 @@ interface StatsModalProps {
   aiReview?: string | null;
   aiReviewLoading?: boolean;
   currentNickname?: string;
+  currentUserId?: string;
 }
 
 export default function StatsModal({
@@ -28,6 +29,7 @@ export default function StatsModal({
   aiReview = null,
   aiReviewLoading = false,
   currentNickname = '',
+  currentUserId,
 }: StatsModalProps) {
   const [activeTab, setActiveTab] = useState<'stats' | 'review' | 'timeline'>('stats');
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
@@ -172,7 +174,7 @@ export default function StatsModal({
             />
           )}
           {activeTab === 'timeline' && (
-            <Timeline events={timeline} />
+            <Timeline events={timeline} currentUserId={currentUserId} />
           )}
         </div>
       </motion.div>

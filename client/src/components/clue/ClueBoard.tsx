@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ZoomIn, ZoomOut, Maximize2, Lightbulb, ChevronDown, ChevronUp, CheckCircle, XCircle, PieChart, RefreshCw, Eye, EyeOff, Lock } from 'lucide-react';
+import { Search, ZoomIn, ZoomOut, Maximize2, Lightbulb, CheckCircle, XCircle, PieChart, RefreshCw, Eye, Lock } from 'lucide-react';
 
-import { useClueGraph, calculateCanvasSize, type PositionedClueNode } from '../../hooks/useClueGraph';
+import { useClueGraph, calculateCanvasSize, type PositionedClueNode, LAYOUT } from '../../hooks/useClueGraph';
 import ClueNode from './ClueNode';
 import ClueEdge from './ClueEdge';
 import type { AiHint } from '../../types';
@@ -45,7 +45,6 @@ export default function ClueBoard({
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [selectedNode, setSelectedNode] = useState<PositionedClueNode | null>(null);
-  const [showPublicHints, setShowPublicHints] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   
@@ -53,20 +52,61 @@ export default function ClueBoard({
   const exhausted = myRemaining <= 0;
   const disabled = hintLoading || exhausted || channelEnded;
 
-  // Calculate bounds
-  const calculateBounds = useCallback(() => {
-    if (nodes.length === 0 && hintNodes.length === 0) {
-      return { minX: 0, maxX: 400, minY: 0, maxY: 300 };
+  // Filter hints
+  const myHints = hints.filter(h => h.userId === currentUserId);
+  const otherPublicHints = hints.filter(h => h.isPublic && h.userId !== currentUserId);
+
+  // Calculate clue list position (right side of all nodes)
+  const clueListPosition = useMemo(() => {
+    const allNodes = [...nodes, ...hintNodes];
+    
+    if (allNodes.length === 0) {
+      return { x: 40, y: 20 };
     }
     
+    const maxX = Math.max(...allNodes.map(n => n.position.x)) + 200; // Node max width
+    return {
+      x: maxX + LAYOUT.CLUE_LIST_GAP,
+      y: 20,
+    };
+  }, [nodes, hintNodes]);
+
+  // Calculate bounds (including clue list)
+  const calculateBounds = useCallback(() => {
     const allNodes = [...nodes, ...hintNodes];
-    const minX = Math.min(...allNodes.map(n => n.position.x)) - 20;
-    const maxX = Math.max(...allNodes.map(n => n.position.x)) + 180;
-    const minY = Math.min(...allNodes.map(n => n.position.y)) - 20;
-    const maxY = Math.max(...allNodes.map(n => n.position.y)) + 80;
+    
+    // Calculate node bounds
+    let minX = 20, maxX = 400, minY = 20, maxY = 300;
+    
+    if (allNodes.length > 0) {
+      minX = Math.min(...allNodes.map(n => n.position.x)) - 20;
+      maxX = Math.max(...allNodes.map(n => n.position.x)) + 180;
+      minY = Math.min(...allNodes.map(n => n.position.y)) - 20;
+      maxY = Math.max(...allNodes.map(n => n.position.y)) + 100;
+    }
+    
+    // Include clue list bounds if there are hints
+    const totalHints = myHints.length + otherPublicHints.length + hintNodes.length;
+    if (totalHints > 0) {
+      // Estimate clue list height based on content
+      const headerHeight = 60; // "线索列表" header
+      const sectionHeaderHeight = 30; // each section header
+      const cardHeight = 60; // approximate card height
+      
+      let clueListHeight = headerHeight;
+      if (myHints.length > 0) clueListHeight += sectionHeaderHeight + myHints.length * cardHeight;
+      if (otherPublicHints.length > 0) clueListHeight += sectionHeaderHeight + otherPublicHints.length * cardHeight;
+      if (hintNodes.length > 0) clueListHeight += sectionHeaderHeight + hintNodes.length * cardHeight;
+      
+      // Extend maxX to include clue list width
+      maxX = clueListPosition.x + LAYOUT.CLUE_LIST_WIDTH + 40;
+      
+      // Extend maxY if clue list is taller than nodes
+      maxY = Math.max(maxY, clueListPosition.y + clueListHeight + 40);
+    }
     
     return { minX, maxX, minY, maxY };
-  }, [nodes, hintNodes]);
+  }, [nodes, hintNodes, myHints, otherPublicHints, clueListPosition]);
 
   // Fit to screen
   const fitToScreen = useCallback(() => {
@@ -174,9 +214,6 @@ export default function ClueBoard({
     }
   }, [nodes.length, hintNodes.length, fitToScreen, scale, position]);
 
-  // Filter hints
-  const myHints = hints.filter(h => h.userId === currentUserId);
-  const otherPublicHints = hints.filter(h => h.isPublic && h.userId !== currentUserId);
   // Empty state
   if (!loading && nodes.length === 0 && hintNodes.length === 0) {
     return (
@@ -271,6 +308,30 @@ export default function ClueBoard({
              height: 'fit-content',
            }}
         >
+          {/* Grid Background */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{ width: canvasSize.width, height: canvasSize.height }}
+          >
+            <defs>
+              <pattern
+                id="grid"
+                width="40"
+                height="40"
+                patternUnits="userSpaceOnUse"
+              >
+                <path
+                  d="M 40 0 L 0 0 0 40"
+                  fill="none"
+                  stroke="rgb(var(--color-border))"
+                  strokeWidth="0.5"
+                  opacity="0.15"
+                />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
+
           {/* Edges (SVG layer) */}
           <svg
             className="absolute inset-0 pointer-events-none"
@@ -308,6 +369,126 @@ export default function ClueBoard({
               ))}
             </div>
           )}
+
+          {/* Clue List Panel - flat design on canvas */}
+          <div
+            className="absolute pointer-events-auto"
+            style={{
+              left: clueListPosition.x,
+              top: clueListPosition.y,
+              width: LAYOUT.CLUE_LIST_WIDTH,
+            }}
+          >
+            {/* Panel Header - flat text */}
+            <div className="mb-6">
+              <h3 className="text-base font-bold text-text/80 select-none">
+                线索列表
+              </h3>
+              <div className="h-px bg-border/20 mt-2" />
+            </div>
+
+            {/* My Hints Section */}
+            {myHints.length > 0 && (
+              <div className="mb-6">
+                <div className="text-xs font-medium text-text/50 mb-3 select-none flex items-center gap-1.5">
+                  <Lock className="w-3 h-3" />
+                  我的线索 ({myHints.length})
+                </div>
+                <div className="space-y-2">
+                  {myHints.map((hint, i) => (
+                    <ClueCard
+                      key={hint.id}
+                      hint={hint}
+                      index={i + 1}
+                      isMine={true}
+                      onTogglePublic={onTogglePublic}
+                      onClick={() => {
+                        const hintNode: PositionedClueNode = {
+                          id: `hint_${hint.id}`,
+                          content: hint.content,
+                          category: '其他',
+                          status: 'hint',
+                          sourceQuestionIds: [],
+                          isKey: false,
+                          position: { x: 0, y: 0 },
+                        };
+                        setSelectedNode(hintNode);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Public Hints Section */}
+            {otherPublicHints.length > 0 && (
+              <div className="mb-6">
+                <div className="text-xs font-medium text-text/50 mb-3 select-none flex items-center gap-1.5">
+                  <Eye className="w-3 h-3" />
+                  公开线索 ({otherPublicHints.length})
+                </div>
+                <div className="space-y-2">
+                  {otherPublicHints.map((hint, i) => (
+                    <ClueCard
+                      key={hint.id}
+                      hint={hint}
+                      index={i + 1}
+                      isMine={false}
+                      onClick={() => {
+                        const hintNode: PositionedClueNode = {
+                          id: `hint_${hint.id}`,
+                          content: hint.content,
+                          category: '其他',
+                          status: 'hint',
+                          sourceQuestionIds: [],
+                          isKey: false,
+                          position: { x: 0, y: 0 },
+                        };
+                        setSelectedNode(hintNode);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI Hint Nodes Section */}
+            {hintNodes.length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-text/50 mb-3 select-none flex items-center gap-1.5">
+                  <Lightbulb className="w-3 h-3" />
+                  AI 分析线索 ({hintNodes.length})
+                </div>
+                <div className="space-y-2">
+                  {hintNodes.map((node, i) => (
+                    <ClueCard
+                      key={node.id}
+                      hint={{
+                        id: node.id.replace('hint_', ''),
+                        channelId: '',
+                        content: node.content,
+                        isPublic: true,
+                        userId: '',
+                        createdAt: new Date().toISOString(),
+                        user: { id: 'ai', nickname: 'AI', avatarSeed: 'ai' },
+                      }}
+                      index={i + 1}
+                      isMine={false}
+                      isAIGenerated={true}
+                      onClick={() => setSelectedNode(node)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {myHints.length === 0 && otherPublicHints.length === 0 && hintNodes.length === 0 && (
+              <div className="text-center py-8 text-text/40 text-xs select-none">
+                暂无线索
+              </div>
+            )}
+          </div>
         </motion.div>
       </div>
 
@@ -338,73 +519,19 @@ export default function ClueBoard({
         </div>
       </div>
 
-      {/* Left Overlay Layer - Clue List & Request Button */}
-      {(!loading) && (
-        <div className="absolute top-4 left-4 bottom-4 w-72 max-w-[calc(100vw-5rem)] z-10 flex flex-col gap-3 pointer-events-none">
-          
-          {/* Scrollable hints list area */}
-          <div className="flex-1 overflow-y-auto min-h-0 pointer-events-auto flex flex-col gap-3 items-start content-start scrollbar-hide py-1">
-            {/* My hints */}
-            {myHints.length > 0 && (
-              <div className="w-full bg-surface/80 backdrop-blur-xl border border-border/40 rounded-2xl overflow-hidden shadow-lg flex-shrink-0 flex flex-col max-h-full">
-                  <MyHintsSection hints={myHints} onTogglePublic={onTogglePublic} />
-              </div>
-            )}
-
-            {/* Other users' public hints */}
-            {otherPublicHints.length > 0 && (
-              <div className="w-full bg-surface/80 backdrop-blur-xl border border-border/40 rounded-2xl overflow-hidden shadow-lg flex-shrink-0 flex flex-col max-h-full">
-                <button
-                  onClick={() => setShowPublicHints(!showPublicHints)}
-                  className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-text bg-surface/50 border-b border-border/20 hover:bg-surface/80 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-primary" /> 公开线索 ({otherPublicHints.length})
-                  </span>
-                  {showPublicHints ? <ChevronUp className="w-4 h-4 text-text-muted" /> : <ChevronDown className="w-4 h-4 text-text-muted" />}
-                </button>
-
-                <AnimatePresence>
-                  {showPublicHints && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col">
-                      <div className="px-3 py-3 space-y-2 max-h-[40vh] overflow-y-auto scrollbar-hide flex-1">
-                        {otherPublicHints.map((hint, i) => (
-                          <div key={hint.id} className="bg-gradient-to-br from-primary/10 to-accent/10 backdrop-blur-xl border border-primary/30 rounded-xl px-3 py-2.5">
-                            <div className="flex items-start gap-2">
-                              <Lightbulb className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                  <span className="text-xs font-semibold text-primary">#{i + 1}</span>
-                                  <span className="text-xs text-text-muted">@{hint.user.nickname}</span>
-                                </div>
-                                <p className="text-[13px] text-text leading-relaxed">{hint.content}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-          {/* Request Hint Button was here, now moved to the bottom */}
-        </div>
-      )}
-
+      {/* Left Overlay Layer removed - clue list now embedded in canvas */}
       {/* Bottom Request Button (Restored to bottom center like input) */}
-      <div className="flex-shrink-0 border-t border-border/30 bg-bg/95 backdrop-blur-md relative z-30 pb-safe">
-        <div className="w-full max-w-3xl mx-auto px-4 py-3">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-3xl z-30 pointer-events-none px-4 pb-safe flex justify-center">
+        <div className="pointer-events-auto w-full">
           <button
             type="button"
             onClick={onRequestHint}
             disabled={disabled}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl
-              font-medium text-[15px] shadow-sm transition-all duration-300
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl
+              font-bold text-[15px] shadow-2xl backdrop-blur-2xl transition-all duration-300 border
               ${disabled
-                ? 'bg-surface/80 text-text-muted cursor-not-allowed border border-border/40'
-                : 'bg-primary text-white hover:bg-primary-light cursor-pointer shadow-primary/10 hover:-translate-y-0.5'
+                ? 'bg-surface/90 text-text-muted cursor-not-allowed border-border/40'
+                : 'bg-primary text-white hover:bg-primary/90 cursor-pointer shadow-primary/20 hover:-translate-y-0.5 border-primary/20'
               }`}
           >
             {hintLoading ? (
@@ -483,84 +610,69 @@ export default function ClueBoard({
   );
 }
 
-// My hints section component with toggle public functionality
-interface MyHintsSectionProps {
-  hints: AiHint[];
-  onTogglePublic: (hintId: string, isPublic: boolean) => void;
+// Clue Card component for embedded clue list
+interface ClueCardProps {
+  hint: AiHint;
+  index: number;
+  isMine: boolean;
+  isAIGenerated?: boolean;
+  onTogglePublic?: (hintId: string, isPublic: boolean) => void;
+  onClick?: () => void;
 }
 
-function MyHintsSection({ hints, onTogglePublic }: MyHintsSectionProps) {
-  const [showMyHints, setShowMyHints] = useState(true);
-  const publicCount = hints.filter(h => h.isPublic).length;
-
+function ClueCard({ hint, index, isMine, isAIGenerated = false, onTogglePublic, onClick }: ClueCardProps) {
   return (
-    <div className="flex flex-col min-h-0">
-      <button
-        onClick={() => setShowMyHints(!showMyHints)}
-        className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-text bg-surface/50 border-b border-border/20 hover:bg-surface/80 transition-colors"
-      >
-        <span className="flex items-center gap-2">
-          <Lock className="w-4 h-4 text-text-muted" />
-          我的线索 ({hints.length})
-          {publicCount > 0 && (
-            <span className="text-xs font-medium text-primary ml-1 bg-primary/10 px-1.5 py-0.5 rounded-md">
-              {publicCount}个已公开
-            </span>
-          )}
+    <div
+      onClick={onClick}
+      className="group relative cursor-pointer transition-all duration-150 hover:translate-x-0.5"
+    >
+      {/* Flat card design */}
+      <div className="flex items-start gap-2 py-2 px-2 border-l-2 border-transparent hover:border-primary/40 transition-colors">
+        {/* Index */}
+        <span className="text-[11px] font-semibold text-text/40 select-none mt-0.5">
+          {String(index).padStart(2, '0')}
         </span>
-        {showMyHints ? <ChevronUp className="w-4 h-4 text-text-muted" /> : <ChevronDown className="w-4 h-4 text-text-muted" />}
-      </button>
-
-      <AnimatePresence>
-        {showMyHints && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden flex flex-col"
-          >
-            <div className="px-3 py-3 space-y-2 overflow-y-auto scrollbar-hide flex-1 max-h-[40vh]">
-              {hints.map((hint, i) => (
-                <div
-                  key={hint.id}
-                  className="bg-card/80 backdrop-blur-xl border border-border/60 rounded-xl px-3 py-2.5 transition-colors hover:border-border"
+        
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            {isAIGenerated && (
+              <span className="text-[9px] px-1 py-0.5 bg-primary/10 text-primary font-medium select-none">
+                AI
+              </span>
+            )}
+            {!isAIGenerated && (
+              <span className="text-[10px] text-text/40 select-none">
+                @{hint.user.nickname}
+              </span>
+            )}
+          </div>
+          <p className="text-[13px] text-text/80 leading-relaxed line-clamp-2 select-none">
+            {hint.content}
+          </p>
+          {isMine && !isAIGenerated && (
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="text-[9px] text-text/30 select-none">
+                {hint.isPublic ? '已公开' : '私密'}
+              </span>
+              {onTogglePublic && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTogglePublic(hint.id, !hint.isPublic);
+                  }}
+                  className="text-[9px] text-primary/60 hover:text-primary transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Lightbulb size={12} className="text-text-muted" />
-                        <span className="text-xs font-semibold text-text-muted">#{i + 1}</span>
-                        {hint.isPublic ? (
-                          <span className="text-xs font-medium text-primary flex items-center gap-0.5 bg-primary/5 px-1 py-0.5 rounded">
-                            <Eye size={10} /> 已公开
-                          </span>
-                        ) : (
-                          <span className="text-xs font-medium text-text-muted flex items-center gap-0.5 bg-surface px-1 py-0.5 rounded">
-                            <EyeOff size={10} /> 私密
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[13px] text-text leading-relaxed mt-1.5">{hint.content}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onTogglePublic(hint.id, !hint.isPublic)}
-                      className={`flex-shrink-0 p-1.5 rounded-lg transition-colors cursor-pointer border ${
-                        hint.isPublic 
-                          ? 'border-primary/20 text-primary hover:bg-primary/10 bg-primary/5' 
-                          : 'border-border/40 text-text-muted hover:text-text hover:bg-surface/80 bg-surface/30'
-                      }`}
-                      title={hint.isPublic ? '取消公开' : '公开给所有人'}
-                    >
-                      {hint.isPublic ? <Eye size={14} /> : <EyeOff size={14} />}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  {hint.isPublic ? '取消公开' : '公开'}
+                </button>
+              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
+
+

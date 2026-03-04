@@ -24,9 +24,10 @@ const eventConfig = {
 interface TimelineProps {
   events: TimelineEvent[];
   compact?: boolean;
+  currentUserId?: string;
 }
 
-export default function Timeline({ events, compact = false }: TimelineProps) {
+export default function Timeline({ events, compact = false, currentUserId }: TimelineProps) {
   const groupedEvents = groupEventsByTime(events);
 
   return (
@@ -49,6 +50,7 @@ export default function Timeline({ events, compact = false }: TimelineProps) {
                 event={event}
                 compact={compact}
                 index={index}
+                currentUserId={currentUserId}
               />
             ))}
           </div>
@@ -58,12 +60,13 @@ export default function Timeline({ events, compact = false }: TimelineProps) {
   );
 }
 
-function TimelineEventItem({ event, compact, index }: { event: TimelineEvent; compact: boolean; index: number }) {
+function TimelineEventItem({ event, compact, index, currentUserId }: { event: TimelineEvent; compact: boolean; index: number; currentUserId?: string }) {
   const config = eventConfig[event.type as keyof typeof eventConfig];
   if (!config) return null;
 
   const Icon = config.icon;
   const meta = event.metadata as Record<string, any> | null;
+  const isOwn = event.userId === currentUserId;
 
   return (
     <motion.div
@@ -72,11 +75,17 @@ function TimelineEventItem({ event, compact, index }: { event: TimelineEvent; co
       transition={{ delay: index * 0.03 }}
       className="relative mb-2"
     >
-      <div className="absolute -left-5 top-1.5 w-4 h-4 rounded-full bg-surface border-2 border-primary flex items-center justify-center">
+      <div className={`absolute -left-5 top-1.5 w-4 h-4 rounded-full flex items-center justify-center ${
+        isOwn ? 'bg-primary/20 border-2 border-primary' : 'bg-surface border-2 border-primary'
+      }`}>
         <div className="w-1.5 h-1.5 rounded-full bg-primary" />
       </div>
 
-      <div className={`bg-card/60 backdrop-blur-xl border border-border rounded-xl p-2.5 ${compact ? 'text-xs' : 'text-sm'}`}>
+      <div className={`backdrop-blur-xl border rounded-xl p-2.5 ${compact ? 'text-xs' : 'text-sm'} ${
+        isOwn
+          ? 'bg-primary/10 border-primary/30'
+          : 'bg-card/60 border-border'
+      }`}>
         <div className="flex items-start gap-2">
           <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${config.color}`} />
           <div className="flex-1 min-w-0">

@@ -367,8 +367,8 @@ export default function ChannelPage() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             transition={{ duration: 0.15 }}
-            className="fixed right-3 z-30 flex flex-col gap-1.5
-                       bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
+            className="fixed right-3 z-30 flex flex-col gap-2.5
+                       bottom-[calc(7rem+env(safe-area-inset-bottom,0px))]"
           >
             {/* Fixed position buttons - always render both, just toggle visibility */}
             <button
@@ -406,6 +406,7 @@ export default function ChannelPage() {
             aiReview={aiReview}
             aiReviewLoading={aiReviewLoading}
             currentNickname={user?.nickname ?? ''}
+            currentUserId={user?.id}
           />
         )}
       </AnimatePresence>

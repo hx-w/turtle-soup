@@ -21,7 +21,7 @@ export interface ClueGraphState {
 }
 
 // Layout constants
-const LAYOUT = {
+export const LAYOUT = {
   COLS: 3,
   GAP_X: 160,
   GAP_Y: 110,
@@ -29,6 +29,8 @@ const LAYOUT = {
   START_Y: 30,
   HINT_AREA_OFFSET: 80,
   MIN_CANVAS_SIZE: 2000,
+  CLUE_LIST_WIDTH: 340, // Width for the clue list panel
+  CLUE_LIST_GAP: 80, // Gap between nodes and clue list
 };
 
 // Position persistence versioning
@@ -165,8 +167,11 @@ export function calculateCanvasSize(nodes: PositionedClueNode[]): { width: numbe
   const maxX = Math.max(...nodes.map((n) => n.position.x)) + 300; // Node width + padding
   const maxY = Math.max(...nodes.map((n) => n.position.y)) + 200; // Node height + padding
 
+  // Add space for clue list on the right side
+  const totalWidth = maxX + LAYOUT.CLUE_LIST_GAP + LAYOUT.CLUE_LIST_WIDTH;
+
   return {
-    width: Math.max(800, maxX),
+    width: Math.max(800, totalWidth),
     height: Math.max(600, maxY),
   };
 }
