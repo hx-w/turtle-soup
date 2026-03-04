@@ -26,7 +26,7 @@ export default function ActionButtons({
   const isHostOrCreator = myRole === 'host' || myRole === 'creator';
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-surface overflow-x-auto">
+    <div className="flex items-center gap-2 px-4 py-3 overflow-x-auto">
       {isActive && myRole === 'player' && (
         <button
           onClick={onReveal}

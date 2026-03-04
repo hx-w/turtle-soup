@@ -268,7 +268,7 @@ export default function ChannelPage() {
         channel={channel}
         isActive={isActive}
         answeredCount={answeredCount}
-        onlineUsersCount={onlineUsers.length}
+        onlineUsersCount={channel.members?.length || 0}
         onShowOnlineUsers={() => setShowOnlineUsers(true)}
         aiProgress={
           channel.aiHostEnabled || channel.aiHintEnabled ? aiProgress : undefined
@@ -299,7 +299,6 @@ export default function ChannelPage() {
       />
 
       <ChannelTabs
-        channelId={channel.id}
         activeTab={activeTab}
         onTabChange={handleTabChange}
         answeredCount={answeredCount}
@@ -322,7 +321,7 @@ export default function ChannelPage() {
         </div>
       ) : activeTab === 'qa' ? (
         <div className="flex-1 min-h-0 flex flex-col">
-          <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-3 space-y-1">
+          <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3 pb-6 space-y-1">
             {questions.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-text-muted">
                 <HelpCircle className="w-12 h-12 mb-3 opacity-30" />
@@ -440,9 +439,15 @@ export default function ChannelPage() {
       <AnimatePresence>
         {showOnlineUsers && (
           <OnlineUsers
-            users={onlineUsers.map((u) => {
-              const member = channel.members?.find((m) => m.userId === u.id);
-              return { ...u, role: member?.role ?? u.role };
+            users={(channel.members || []).map((m) => {
+              const isOnline = onlineUsers.some((u) => u.id === m.userId);
+              return { 
+                id: m.userId,
+                nickname: m.user.nickname,
+                avatarSeed: m.user.avatarSeed,
+                role: m.role,
+                isOnline
+              };
             })}
             onClose={() => setShowOnlineUsers(false)}
           />

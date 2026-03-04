@@ -160,7 +160,7 @@ const DiscussionPanel = forwardRef<DiscussionPanelHandle, DiscussionPanelProps>(
               </div>
             )}
 
-            {/* Messages */}
+        {/* Messages */}
             {messages.map((msg, i) => {
               const isOwn = msg.userId === currentUserId;
               const grouped = shouldGroup(messages[i - 1], msg);
@@ -204,7 +204,7 @@ const DiscussionPanel = forwardRef<DiscussionPanelHandle, DiscussionPanelProps>(
             })}
           </>
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-6" />
       </div>
     );
   },

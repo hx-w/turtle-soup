@@ -273,19 +273,21 @@ export default function QuestionBubble({
           </div>
         )}
 
-        {isPending && isOwn && !isHost && onWithdraw && (
-          <button
-            onClick={() => onWithdraw(question.id)}
-            aria-label="撤回问题"
-            className="mt-2 text-xs text-text-muted hover:text-no transition-colors duration-200 cursor-pointer"
-          >
-            撤回问题
-          </button>
-        )}
+        <div className="mt-2 text-xs text-text-muted flex items-center justify-between">
+          {isPending && !isOwn && !isHost && !showAnswerOptions && (
+            <span>等待回答中...</span>
+          )}
 
-        {isPending && !isOwn && !isHost && !showAnswerOptions && (
-          <span className="mt-2 text-xs text-text-muted">等待回答中...</span>
-        )}
+          {isPending && isOwn && !isHost && onWithdraw && (
+            <button
+              onClick={() => onWithdraw(question.id)}
+              aria-label="撤回问题"
+              className="hover:text-no transition-colors duration-200 cursor-pointer"
+            >
+              撤回问题
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );

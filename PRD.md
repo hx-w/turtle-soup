@@ -12,7 +12,7 @@
 
 ### 1.2 核心体验
 
-- **主持人**：创建谜题，引导玩家通过 "是/否/无关" 的回答方式逐步接近真相
+- **主持人**：创建谜题，引导玩家通过 "是/否/无关/部分正确" 的回答方式逐步接近真相
 - **玩家**：通过提出巧妙的问题，拼凑线索，推理出谜底
 - **观众**：浏览已归档的谜题，学习经典问答思路
 
@@ -83,7 +83,9 @@
 | 汤底 (Truth) | 是 | 谜题的真相/答案，仅主持人可见，10-5000 字符 |
 | 最大问题数 | 否 | 可回答的问题数上限，默认无限（0 表示无限）；最小值为 10 |
 | 难度标签 | 否 | 简单 / 中等 / 困难 / 地狱，默认"中等" |
-| 分类标签 | 否 | 如：经典、恐怖、温情、脑洞、日常等，可多选 |
+| 分类标签 | 否 | 如：本格、变格、恐怖、温情、脑洞、日常等，可多选（最多 5 个，每个最多 10 字符） |
+| AI 主持 | 否 | 启用后 AI 自动回答超时未处理的问题，可配置延迟分钟数 |
+| AI 提示 | 否 | 启用后玩家可向 AI 请求线索，可配置每人提示次数上限（1-10） |
 
 **创建后**：
 - 创建者自动成为该 Channel 的初始主持人
@@ -99,8 +101,8 @@
 - **进行中 (Active)**：玩家可以加入、提问；主持人可以回答
 - **结束 (Ended)**：
   - 触发条件（满足任一）：
-    1. 已回答的问题数达到最大问题数上限
-    2. 主持人手动结束 Channel
+    1. 已回答的问题数达到最大问题数上限（自动结束）
+    2. 创建者手动结束 Channel
   - 结束时自动公布汤底
   - 进入评分 / 评语阶段
 - **归档 (Archived)**：结束后自动归档，所有用户可浏览完整的问答记录和汤底
@@ -211,13 +213,57 @@
 - `role_changed`：角色变更（player→host）
 - `truth_revealed`：查看真相
 - `channel_ended`：汤结束
+- `ai_answered`：AI 自动回答
+- `ai_answer_modified`：主持人修正 AI 回答
+- `hint_used`：玩家使用 AI 提示
+- `hint_shared`：AI 提示被公开分享
 
 **时间线展示**：
 - 游戏结束后可查看完整时间线
 - 归档页面可查看每局游戏的时间线
 - 显示关键事件：创建时间、第一个问题、关键问题、角色变更、结束时间等
 
-### 3.9 Channel 内实时通信
+### 3.9 讨论区
+
+Channel 内设有独立于问答的自由讨论区。
+
+- 游戏结束后开放，所有成员（含主持人）均可发言
+- 消息长度限制 1-500 字符
+- 支持分页加载历史消息（游标分页，默认 50 条/页）
+- 实时广播新消息（Socket.IO `chat:new` 事件）
+
+### 3.10 AI 辅助功能（可选）
+
+AI 功能依赖外部 LLM 服务（OpenAI 兼容接口），需配置环境变量后启用。所有 AI 功能均为**渐进增强**，未配置时平台正常运行。
+
+#### AI 主持（自动回答）
+
+- 创建 Channel 时可选启用，配置延迟分钟数
+- 问题提交后超过指定时间未被人工回答，AI 自动判定并回答
+- AI 基于汤面、汤底和历史问答上下文生成判断：回答类型 + 是否关键问题 + 推理过程
+- 主持人可手动修正 AI 的回答（更正后记录 `ai_answer_modified` 事件）
+- AI 回答在 UI 上有专属标识，可展开查看推理过程
+
+#### AI 提示
+
+- 创建 Channel 时可选启用，配置每人提示次数上限
+- 玩家在游戏中可主动请求 AI 生成线索
+- 提示默认为私有（仅请求者可见），可选择公开分享给全员
+- 公开分享时通过 Socket.IO `hint:shared` 事件广播
+
+#### AI 进度评估
+
+- 每次问题被回答后异步评估当前游戏进度（0-100%）
+- 综合考虑已回答问题数、关键问题数、回答分布等因素
+- 进度变化时通过 Socket.IO `progress:updated` 事件推送
+
+#### AI 复盘
+
+- Channel 结束后异步生成结构化复盘报告
+- 包含：难度评估、精彩提问、游戏质量分析
+- 存储在 Channel 记录中，通过 `ai:review_ready` 事件通知前端
+
+### 3.11 Channel 内实时通信
 
 - 使用 WebSocket 实现实时通信
 - 实时推送的事件：
@@ -405,8 +451,8 @@ enum MessageType {
 | 数据库 | PostgreSQL | 关系型数据，适合结构化游戏数据 |
 | ORM | Prisma | 类型安全的数据库操作 |
 | 实时通信 | Socket.IO | WebSocket 封装，支持断线重连 |
-| 缓存 | Redis | 在线状态、会话管理、实时数据 |
 | 认证 | JWT (jsonwebtoken) | 无状态认证 |
+| AI（可选） | Vercel AI SDK | OpenAI 兼容接口，LLM 辅助判题/提示/复盘 |
 | 部署 | Docker + Docker Compose | 容器化部署 |
 | 反向代理 | Nginx | 静态资源服务 + WebSocket 代理 |
 
@@ -415,49 +461,42 @@ enum MessageType {
 ```
 turtle-soup/
 ├── docker-compose.yml
-├── nginx/
-│   └── nginx.conf
-├── client/                  # 前端
-│   ├── Dockerfile
-│   ├── public/
-│   │   ├── manifest.json
-│   │   ├── sw.js
-│   │   └── icons/
+├── Dockerfile               # 多阶段构建（前端 + 后端）
+├── nginx.conf.example
+├── client/                  # React 前端
 │   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── hooks/
-│   │   ├── stores/
-│   │   ├── services/       # API + WebSocket
-│   │   ├── types/
-│   │   └── utils/
+│   │   ├── pages/           # 7 个页面
+│   │   ├── components/      # UI 组件（含 channel/、ai/ 子目录）
+│   │   ├── hooks/           # useChannelData, useChannelSocket, useDiscussion
+│   │   ├── stores/          # Zustand 状态管理
+│   │   ├── lib/             # API 封装、Socket.IO 初始化
+│   │   └── types.ts
 │   └── package.json
-├── server/                  # 后端
-│   ├── Dockerfile
+├── server/                  # Express 后端
 │   ├── prisma/
 │   │   └── schema.prisma
 │   ├── src/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── middlewares/
-│   │   ├── socket/
-│   │   ├── routes/
-│   │   ├── utils/
-│   │   └── types/
+│   │   ├── routes/          # auth, channels, users, ai
+│   │   ├── middleware/      # auth, validate, errorHandler
+│   │   ├── services/        # timeline, ai/
+│   │   ├── lib/             # prisma, jwt, logger, env
+│   │   └── socket.ts
+│   ├── tests/
 │   └── package.json
-└── PRD.md
+├── PRD.md
+├── README.md
+└── DEVELOPMENT.md
 ```
 
 ### 9.3 Docker Compose 服务编排
 
 ```yaml
 services:
-  nginx:        # 反向代理，端口 80/443
-  client:       # 前端构建产物由 nginx 托管（或独立容器 dev 模式）
-  server:       # 后端 API + WebSocket 服务
+  server:       # 后端 API + WebSocket + 静态托管前端
   postgres:     # 数据库
-  redis:        # 缓存 + 会话
 ```
+
+单容器部署：Vite 构建前端产物由 Express 静态托管，外部 Nginx 做反向代理（可选）。
 
 ### 9.4 数据库设计（核心表）
 
@@ -494,6 +533,12 @@ services:
 | creator_id | UUID | 创建者 |
 | created_at | TIMESTAMP | 创建时间 |
 | ended_at | TIMESTAMP | 结束时间（可选） |
+| ai_host_enabled | BOOLEAN | 是否启用 AI 自动回答 |
+| ai_host_delay_minutes | INT | AI 自动回答延迟分钟数 |
+| ai_hint_enabled | BOOLEAN | 是否启用 AI 提示 |
+| ai_hint_per_player | INT | 每人 AI 提示次数上限 |
+| ai_review | TEXT | AI 复盘内容（可选） |
+| ai_progress | FLOAT | AI 评估的游戏进度 |
 
 **ChannelMember**
 | 字段 | 类型 | 说明 |
@@ -501,7 +546,7 @@ services:
 | id | UUID | 主键 |
 | channel_id | UUID | 所属 Channel |
 | user_id | UUID | 用户 |
-| role | ENUM | host / player |
+| role | ENUM | creator / host / player |
 | joined_at | TIMESTAMP | 加入时间 |
 | became_host_at | TIMESTAMP | 成为主持人时间（可选） |
 
@@ -516,6 +561,8 @@ services:
 | answer | ENUM | yes / no / irrelevant / partial（可选） |
 | is_key_question | BOOLEAN | 是否为关键问题 |
 | answered_by | UUID | 回答者（可选） |
+| is_ai_answered | BOOLEAN | 是否由 AI 回答 |
+| ai_reasoning | TEXT | AI 推理过程（可选） |
 | created_at | TIMESTAMP | 提问时间 |
 | answered_at | TIMESTAMP | 回答时间（可选） |
 
@@ -540,6 +587,10 @@ services:
 - `role_changed`：角色变更
 - `truth_revealed`：查看真相
 - `channel_ended`：汤结束
+- `ai_answered`：AI 自动回答
+- `ai_answer_modified`：主持人修正 AI 回答
+- `hint_used`：玩家使用 AI 提示
+- `hint_shared`：AI 提示被公开分享
 
 **Rating**
 | 字段 | 类型 | 说明 |
@@ -550,6 +601,25 @@ services:
 | score | INT | 1-5 星 |
 | comment | TEXT | 评语（可选） |
 | created_at | TIMESTAMP | 评分时间 |
+
+**ChatMessage**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 主键 |
+| channel_id | UUID | 所属 Channel |
+| user_id | UUID | 发言用户 |
+| content | VARCHAR(500) | 消息内容 |
+| created_at | TIMESTAMP | 发送时间 |
+
+**AiHint**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 主键 |
+| channel_id | UUID | 所属 Channel |
+| user_id | UUID | 请求提示的用户 |
+| content | TEXT | 提示内容 |
+| is_public | BOOLEAN | 是否公开 |
+| created_at | TIMESTAMP | 创建时间 |
 
 ---
 
@@ -579,12 +649,12 @@ GET    /api/users/me/stats               我的统计数据
 ```
 POST   /api/channels                     创建 Channel
 GET    /api/channels                     获取 Channel 列表（支持筛选/分页）
-GET    /api/channels/:id                 获取 Channel 详情
+GET    /api/channels/:id                 获取 Channel 详情（汤底按角色过滤）
+PATCH  /api/channels/:id                 编辑汤面/汤底（仅创建者）
+DELETE /api/channels/:id                 归档 Channel（仅创建者）
 POST   /api/channels/:id/join            加入 Channel
-POST   /api/channels/:id/end             结束 Channel（仅主持人）
-GET    /api/channels/:id/questions       获取问题列表
+POST   /api/channels/:id/end             结束 Channel（仅创建者）
 GET    /api/channels/:id/stats           获取 Channel 统计
-GET    /api/channels/:id/members         获取成员列表
 ```
 
 ### 10.4 问题
@@ -599,15 +669,24 @@ PUT    /api/channels/:id/questions/:qid/withdraw 撤回问题（仅提问者）
 
 ```
 POST   /api/channels/:id/reveal          查看汤底（身份转换）
-POST   /api/channels/:id/ratings         提交评分和评语
+POST   /api/channels/:id/ratings         提交评分和评语（upsert）
 GET    /api/channels/:id/ratings         获取评分列表
 ```
 
-### 10.6 管理
+### 10.6 讨论
 
 ```
-POST   /api/admin/invite-codes           生成邀请码
-GET    /api/admin/invite-codes           查看邀请码列表
+GET    /api/channels/:id/chat?before=ISO&limit=50    获取讨论消息（游标分页）
+POST   /api/channels/:id/chat                        发送讨论消息
+```
+
+### 10.7 AI（需配置 AI 环境变量）
+
+```
+GET    /api/ai/status                                检查 AI 服务可用性
+POST   /api/channels/:id/hints                       请求 AI 提示
+GET    /api/channels/:id/hints?limit=10              获取已生成的提示
+PUT    /api/channels/:id/questions/:qid/correct      修正 AI 回答（仅主持人）
 ```
 
 ---
@@ -629,15 +708,20 @@ channel:end           结束 Channel
 ### 11.2 服务端 → 客户端
 
 ```
-channel:user_joined       用户加入通知
-channel:user_left         用户离开通知
+channel:user_joined       用户加入通知（附带在线列表）
+channel:user_left         用户离开通知（附带在线列表）
 channel:ended             Channel 结束通知
+channel:updated           Channel 信息更新
 question:new              新问题广播
 question:answered         问题已回答广播
 question:withdrawn        问题已撤回广播
-counter:update            问题计数更新
+question:ai_answered      AI 自动回答广播
+question:ai_corrected     AI 回答被修正广播
 role:changed              用户身份变更通知
-truth:revealed            汤底公布（Channel 结束时）
+chat:new                  新讨论消息广播
+hint:shared               AI 提示被公开分享
+progress:updated          游戏进度评估更新
+ai:review_ready           AI 复盘生成完成
 ```
 
 ---
@@ -680,23 +764,23 @@ POSTGRES_USER=turtle
 POSTGRES_PASSWORD=<secure_password>
 POSTGRES_DB=turtle_soup
 
-# Redis
-REDIS_URL=redis://redis:6379
-
 # JWT
 JWT_SECRET=<secure_random_string>
 JWT_REFRESH_SECRET=<secure_random_string>
 
 # 应用
-SERVER_PORT=3000
-CLIENT_URL=http://localhost
-
-# 初始管理员
-ADMIN_NICKNAME=admin
-ADMIN_PASSWORD=<admin_password>
+PORT=3000
+CORS_ORIGIN=http://localhost:5173
 
 # 初始邀请码
-INITIAL_INVITE_CODE=<first_invite_code>
+INITIAL_INVITE_CODE=TURTLE2024
+
+# AI（可选，不配置则 AI 功能不可用）
+AI_PROVIDER=<deepseek|openai|custom>
+AI_BASE_URL=<OpenAI 兼容 API 地址>
+AI_API_KEY=<API Key>
+AI_MODEL=<模型标识>
+AI_REQUEST_TIMEOUT=30000
 ```
 
 ### 13.3 Nginx 配置要点
@@ -726,29 +810,381 @@ INITIAL_INVITE_CODE=<first_invite_code>
 ### v1.0 — MVP
 
 - [x] 用户注册 / 登录（昵称 + 密码 + 邀请码）
-- [x] 创建海龟汤 Channel（汤面 + 汤底 + 最大问题数）
-- [x] Channel 大厅列表
-- [x] 核心游戏循环：提问 → 回答（是/否/无关）→ 撤回
-- [x] 查看汤底 → 身份转换
-- [x] Channel 结束 + 汤底揭晓
-- [x] 基础统计
+- [x] 创建海龟汤 Channel（汤面 + 汤底 + 最大问题数 + 难度 + 标签）
+- [x] Channel 大厅列表（筛选、搜索、分页）
+- [x] 核心游戏循环：提问 → 回答（是/否/无关/部分正确）→ 撤回
+- [x] 二次确认回答 + 关键问题标记
+- [x] 三角色系统（创建者 / 主理人 / 玩家）
+- [x] 查看汤底 → 身份转换（player → host）
+- [x] Channel 结束 + 汤底揭晓动画
+- [x] 游戏统计 + 趣味颁奖（最佳侦探、话痨王等）
 - [x] 评分 / 评语
-- [x] 个人中心（参与记录）
-- [x] 移动端适配
-- [x] PWA 支持
-- [x] Docker Compose 部署
+- [x] 时间线事件系统
+- [x] 个人中心（参与记录 + 统计数据）
+- [x] 移动端适配 + PWA 支持
+- [x] Docker Compose 一键部署
 
-### v1.1 — 增强
+### v1.1 — 增强（已完成）
 
-- [ ] 推送通知（Web Push）
-- [ ] 用户自主生成邀请码
-- [x] Channel 内聊天（独立于问答的自由讨论区）
-- [ ] 问题点赞 / 标记"好问题"
-- [ ] 更丰富的成就系统 / 徽章
+- [x] Channel 内讨论区（独立于问答的自由讨论）
+- [x] AI 主持（自动回答 + 推理过程 + 手动修正）
+- [x] AI 提示（按人限次、公开/私有）
+- [x] AI 进度评估
+- [x] AI 复盘报告
+- [x] 归档浏览页
 
 ### v2.0 — 拓展
 
+- [ ] 推送通知（Web Push）
+- [ ] 问题点赞 / 标记"好问题"
 - [ ] AI 辅助出题（生成汤面 / 汤底）
 - [ ] 竞赛模式（限时、积分制）
-- [ ] 社交功能（关注、好友、私信）
 - [ ] 汤底投票猜测（结束前玩家可提交猜测）
+
+---
+
+## 16. v2.0 功能详细设计
+
+### 16.1 可分享摘要卡片
+
+#### 目标
+
+游戏结束后，一键生成一张精致的摘要图片。用途：
+- 玩家保存到相册作为"战绩"
+- 分享至社交平台吸引新玩家（卡片本身即为谜题预告，看到的人会想"我能猜到吗？"）
+- 主持人分享作为出题成就
+
+#### 技术方案
+
+使用 [`html-to-image`](https://github.com/bubkoo/html-to-image)（MIT，~10KB gzip）将隐藏的 React 卡片组件渲染为 PNG。
+
+```
+触发 → 渲染隐藏 DOM 卡片 → html-to-image toPng (2x DPR) → 移动端调用 navigator.share() / 桌面端下载 PNG
+```
+
+**关键实现细节**：
+- 卡片组件渲染在 `position: fixed; left: -9999px` 的容器中，固定宽高，不受页面布局影响
+- 输出 2x 像素比（`pixelRatio: 2`）确保社交平台压缩后仍清晰
+- 字体使用系统字体栈（避免自定义字体在 canvas 中加载失败）
+- 移动端优先调用 `navigator.share({ files: [blob] })`，支持直接分享到微信/朋友圈等
+- 桌面端回退为 `<a download>` 自动下载 PNG
+
+#### 卡片尺寸
+
+**主尺寸 1080×1920px**（9:16 竖版，@2x 渲染）
+- 逻辑尺寸 540×960，导出 1080×1920 物理像素
+- 适配：微信朋友圈、Instagram Story、手机壁纸、小红书
+- 9:16 是移动端社交平台的黄金比例，竖版阅读体验最佳
+
+#### 视觉设计
+
+**配色方案 — "焦糖羊皮纸"（Burnt Parchment）**
+
+不使用蓝紫色渐变。整体调性：老式推理小说的质感。
+
+```
+底色:       #1c1917  (stone-900，温暖的近黑色，非冷调纯黑)
+卡片底:     #292524  (stone-800，微暖灰)
+主文字:     #faf9f6  (暖白，非冷白)
+次要文字:   #a8a29e  (stone-400，暖灰)
+点缀色:     #d97706  (amber-600，焦糖琥珀)
+高亮:       #f59e0b  (amber-500，用于数据强调)
+分割线:     #44403c  (stone-700)
+```
+
+**设计风格**：
+- 无渐变背景，使用纯色 + 极细的 1px 分割线营造层次
+- 卡片上方有一道微弱的 `amber-600/20` 顶部光线（4px 高），暗示"灯下推理"的意境
+- 文字排版采用左对齐为主，大量留白，克制使用装饰元素
+- 数据区使用等宽数字（`font-variant-numeric: tabular-nums`）
+- 整体无圆角或极小圆角（2-4px），偏硬朗
+
+#### 卡片内容布局
+
+```
+┌──────────────────────────────────┐
+│ ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔ amber 顶线  │
+│                                  │
+│  海龟汤                    ★ 4.5  │ ← 品牌名（小字）+ 评分
+│                                  │
+│  ─────────────────────────────── │
+│                                  │
+│  汤面                            │ ← 标签，amber 色小字
+│                                  │
+│  一个男人走进一家餐厅，             │ ← 汤面正文，最多显示 4 行
+│  点了一碗海龟汤。他喝了一口，       │    超出用 "……" 截断
+│  然后走出餐厅自杀了。              │    字号较大 (18px)，行高宽松
+│  为什么？                         │
+│                                  │
+│  ─────────────────────────────── │
+│                                  │
+│  ┌─────┐  ┌─────┐  ┌─────┐     │ ← 三个数据块，等距排列
+│  │  42  │  │  12  │  │ 困难 │     │    数字用 amber 大号字
+│  │ 提问  │  │ 玩家  │  │ 难度 │     │    标签用灰色小字
+│  └─────┘  └─────┘  └─────┘     │
+│                                  │
+│  ─────────────────────────────── │
+│                                  │
+│  提问分布                         │ ← 标签
+│  ████████░░░░░░░░░░░░           │ ← 水平堆叠条
+│  是 18   否 14   无关 7  部分 3   │ ← 图例，各色标注
+│                                  │
+│  ─────────────────────────────── │
+│                                  │
+│  🎯 关键一问                      │ ← 如有 lastYes 奖项
+│  "死者生前是否吃过真正的海龟汤？"   │ ← 问题内容，amber 引号
+│                                  │    —— 提问者昵称
+│                                  │
+│  ─────────────────────────────── │
+│                                  │
+│  你能猜到汤底吗？                  │ ← CTA，amber 色，字号适中
+│  来挑战 →                         │
+│                                  │
+│  ─────────────────────────────── │
+│  海龟汤 · turtle-soup     [日期]  │ ← 底栏，极小字，低调
+│                                  │
+└──────────────────────────────────┘
+```
+
+#### 数据来源映射
+
+卡片数据全部来自已有的 `GET /api/channels/:id/stats` 接口，无需新增后端接口。
+
+| 卡片区域 | 数据来源 |
+|---------|---------|
+| 汤面文本 | `channel.surface`（截断前 4 行） |
+| 评分 | `stats.averageRating` |
+| 提问数 | `stats.totalQuestions` |
+| 玩家数 | `stats.playerCount` |
+| 难度 | `channel.difficulty` |
+| 分布条 | `stats.distribution { yes, no, irrelevant, partial }` |
+| 关键一问 | `stats.awards.lastYes`（取 `content` + `asker.nickname`） |
+| 日期 | `channel.endedAt` |
+
+#### 交互流程
+
+1. 游戏结束后，StatsModal 底部出现"生成分享卡片"按钮
+2. 点击按钮 → 按钮变为 loading 态（spinner + "生成中"）
+3. 后台渲染隐藏 DOM → `toPng()` 生成 blob
+4. **移动端**：调用 `navigator.share({ files: [new File([blob], 'turtle-soup.png')] })`，唤起系统分享面板
+5. **桌面端**：弹出预览浮层（卡片图片 + "保存图片"按钮），点击按钮触发 `<a download>` 下载
+6. 如果 `navigator.share` 不可用且非桌面，回退为下载
+
+#### 容错
+
+- `html-to-image` 渲染失败时（极端情况，如字体未加载）：显示 toast 提示"生成失败，请重试"
+- 无 lastYes 奖项时：卡片省略"关键一问"区域，布局自动收紧
+- 无评分时：右上角评分区域显示"暂无评分"灰色小字
+
+---
+
+### 16.2 盲猜汤底 — Replay 模式
+
+#### 目标
+
+让已结束的海龟汤获得"二次生命"。浏览归档的用户不再是"看答案"，而是"跟着线索推理一遍，最后自己猜汤底"。
+
+核心体验：**一个人也能玩海龟汤。**
+
+#### 设计原则
+
+- **纯前端实现**，不需要后端改动。所有数据已通过 `GET /api/channels/:id` 返回
+- **不存储猜测结果**（v1 不做社交猜测排行），保持轻量
+- **保留退出自由**——用户随时可跳过 Replay 直接看完整记录
+
+#### 进入方式
+
+在 ArchivePage 的 Channel 卡片上增加入口分支：
+
+```
+用户点击已结束的 Channel 卡片
+         │
+         ▼
+    ┌──────────────┐
+    │  选择模式弹窗  │
+    │              │
+    │  [🔍 Replay]  │  ← 主按钮，amber 色，"跟着线索推理"
+    │  [📖 直接查看] │  ← 次要按钮，ghost 样式，"查看完整记录"
+    │              │
+    └──────────────┘
+```
+
+- Replay 按钮上方一行说明文字："隐藏汤底，跟着问答线索推理，最后猜出真相"
+- 首次进入归档页时弹出；如果用户曾对该 Channel 选择过"直接查看"，下次默认进直接查看
+- 选择状态存储在 `localStorage`（`replay-skip:{channelId}`），无需后端
+
+#### Replay 模式完整流程
+
+**Phase 1 — 阅读汤面**
+
+```
+┌──────────────────────────────────┐
+│  [← 返回]         Replay 模式    │
+│                                  │
+│  汤面                            │
+│  ┌──────────────────────────┐   │
+│  │                          │   │
+│  │  一个男人走进一家餐厅，     │   │ ← 完整汤面，可滚动
+│  │  点了一碗海龟汤...         │   │
+│  │                          │   │
+│  └──────────────────────────┘   │
+│                                  │
+│  难度: 困难  │  共 42 个问题      │ ← 告知总题量，让用户有预期
+│                                  │
+│          [开始推理 →]             │ ← 主按钮，进入 Phase 2
+│                                  │
+└──────────────────────────────────┘
+```
+
+**Phase 2 — 逐题推理**
+
+这是核心体验。问题**逐条揭示**，模拟真实游戏的信息流。
+
+```
+┌──────────────────────────────────┐
+│  [← 返回]    3 / 42    [跳过 ▸▸] │ ← 进度指示 + 跳过按钮
+│                                  │
+│  汤面 (折叠栏，点击展开)           │ ← 复用 SurfacePanel 折叠态
+│                                  │
+│  ┌──────────────────────────┐   │
+│  │ Q1  这个男人是自愿去的吗？  │   │ ← 问题内容可见
+│  │                          │   │
+│  │     [点击揭示回答]         │   │ ← 答案默认遮罩
+│  └──────────────────────────┘   │
+│                                  │
+│  ┌──────────────────────────┐   │
+│  │ Q2  海龟汤是真的海龟做的？  │   │
+│  │              是 🎯        │   │ ← 已揭示的问题显示答案
+│  └──────────────────────────┘   │   ← 关键问题显示 🎯
+│                                  │
+│  ┌──────────────────────────┐   │
+│  │ Q3  他之前喝过海龟汤吗？   │   │ ← 当前题，答案待揭示
+│  │                          │   │
+│  │     [点击揭示回答]         │   │
+│  └──────────────────────────┘   │
+│                                  │
+│  ─ ─ ─ 后续问题暂未揭示 ─ ─ ─   │
+│                                  │
+│  [我已经猜到了！写下汤底 ✍]      │ ← 悬浮底栏，随时可点
+│                                  │
+└──────────────────────────────────┘
+```
+
+**逐题揭示规则**：
+1. 进入 Phase 2 时，仅显示第 1 题（答案遮罩）
+2. 用户点击"点击揭示回答" → 该题答案显示（是/否/无关/部分正确 + 关键标记）
+3. 揭示当前题答案后，自动加载下一题（答案遮罩），页面平滑滚动到新题
+4. 用户可以向上滚动回顾已揭示的问题
+5. 底部悬浮栏始终可见——用户任何时刻都可以选择"我猜到了"进入 Phase 3
+6. "跳过"按钮：一键揭示所有剩余问题的答案，进入 Phase 3
+
+**遮罩样式**：
+- 答案区域显示为 `bg-stone-800/80 backdrop-blur-sm` 的模糊块
+- 块上居中文字"点击揭示"，`text-amber-500/60`
+- 点击后遮罩以 `opacity 0 + scale 0.95` 动画消失，答案淡入
+
+**Phase 3 — 写下猜测**
+
+```
+┌──────────────────────────────────┐
+│  [← 返回推理]                    │
+│                                  │
+│  写下你的汤底                     │ ← 标题
+│                                  │
+│  你已看过 28 / 42 个问题的线索。   │ ← 提示看了多少题
+│  根据以上线索，你认为真相是什么？   │
+│                                  │
+│  ┌──────────────────────────┐   │
+│  │                          │   │ ← textarea，自动聚焦
+│  │  (在这里写下你猜测的汤底)   │   │    placeholder 文字
+│  │                          │   │    min-height: 120px
+│  │                          │   │    max: 2000 字
+│  └──────────────────────────┘   │
+│                                  │
+│  [揭晓真相 →]                    │ ← 主按钮，amber 色
+│  [跳过猜测，直接揭晓]             │ ← ghost 链接
+│                                  │
+└──────────────────────────────────┘
+```
+
+- textarea 非必填。用户可以不写直接点"跳过猜测，直接揭晓"
+- 写下内容后点"揭晓真相"进入 Phase 4
+- 猜测内容仅存在前端内存中（`useState`），不上传服务器
+
+**Phase 4 — 汤底揭晓 + 对比**
+
+```
+┌──────────────────────────────────┐
+│                                  │
+│           汤底揭晓               │ ← 复用 TruthReveal 动画
+│                                  │
+│  ─── 真正的汤底 ───              │
+│  ┌──────────────────────────┐   │
+│  │                          │   │
+│  │  (完整汤底内容)            │   │ ← 标准汤底展示
+│  │                          │   │
+│  └──────────────────────────┘   │
+│                                  │
+│  ─── 你的猜测 ───               │ ← 仅当用户填写了猜测时显示
+│  ┌──────────────────────────┐   │
+│  │                          │   │
+│  │  (用户的猜测内容)          │   │ ← 与汤底对比呈现
+│  │                          │   │
+│  └──────────────────────────┘   │
+│                                  │
+│  基于 28 / 42 条线索推理          │ ← 用了多少线索
+│                                  │
+│  ─────────────────────────────── │
+│                                  │
+│  [查看完整问答记录]    [生成卡片]  │ ← 后续操作
+│  [返回归档]                      │
+│                                  │
+└──────────────────────────────────┘
+```
+
+- 复用现有的 `TruthReveal` 组件的翻牌动画
+- 汤底区域用 `border-amber-600/30` 边框，用户猜测区域用 `border-stone-600/30` 边框，形成视觉对比
+- 如果用户跳过猜测，不显示"你的猜测"区域
+- "查看完整问答记录"按钮进入标准的 Channel 详情页（所有信息可见）
+- "生成卡片"按钮复用 16.1 的分享卡片功能
+
+#### 状态管理
+
+Replay 模式的状态完全在组件内管理，不需要 Zustand store：
+
+```typescript
+interface ReplayState {
+  phase: 'surface' | 'questions' | 'guess' | 'reveal'
+  revealedCount: number      // 已揭示答案的问题数
+  currentIndex: number       // 当前展示到第几题（含未揭示）
+  userGuess: string          // 用户的猜测文本
+  allRevealed: boolean       // 是否已跳过（全部揭示）
+}
+```
+
+- 初始：`{ phase: 'surface', revealedCount: 0, currentIndex: 0, userGuess: '', allRevealed: false }`
+- 数据源：复用 `useChannelData` hook 获取 channel + questions，只是渲染逻辑不同
+- Replay 状态不持久化（刷新页面重新开始），保持简单
+
+#### URL 设计
+
+```
+/archive/:id           → 标准归档详情页（现有行为）
+/archive/:id?replay=1  → Replay 模式（Phase 1 开始）
+```
+
+- ArchivePage 卡片的 Replay 按钮链接到 `?replay=1`
+- 直接查看按钮链接到无参数的路径
+- 支持直接分享 Replay 链接给朋友（"你来试试这碗汤"）
+
+#### 对已有代码的影响
+
+| 改动范围 | 改动内容 | 影响程度 |
+|---------|---------|---------|
+| `ArchivePage.tsx` | 卡片点击行为改为弹出模式选择 | 小 |
+| 新增 `ReplayView.tsx` | Replay 模式主组件（4 个 phase 子组件） | 新增 |
+| 新增 `ReplayQuestionCard.tsx` | 带遮罩的问题卡片 | 新增 |
+| `ChannelPage.tsx` 或路由 | 根据 `?replay=1` 参数渲染 ReplayView | 小 |
+| `SurfacePanel` | 无改动，Replay 直接复用 | 无 |
+| `TruthReveal` | 无改动，Phase 4 直接复用 | 无 |
+| 后端 | **无改动** | 无 |

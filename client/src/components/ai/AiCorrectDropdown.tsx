@@ -27,7 +27,7 @@ export default function AiCorrectDropdown({
   const [selected, setSelected] = useState<'yes' | 'no' | 'irrelevant' | 'partial'>(currentAnswer ?? 'yes');
   const [isKey, setIsKey] = useState(currentIsKey);
   const [loading, setLoading] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [position, setPosition] = useState<{ top: number; left: number; maxHeight?: number }>({ top: 0, left: 0 });
   const [dropUp, setDropUp] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -46,16 +46,22 @@ export default function AiCorrectDropdown({
     setIsKey(currentIsKey);
   }, [currentIsKey]);
 
-  // Calculate position when opening
+  // Calculate position dynamically
   useEffect(() => {
-    if (open && containerRef.current) {
+    const updatePosition = () => {
+      if (!open || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const menuWidth = 192;
-      const menuHeight = 200;
-      const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
       
-      const shouldDropUp = rect.bottom + menuHeight > viewportHeight - 20;
+      // Use visualViewport if available for better mobile keyboard handling
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const viewportWidth = window.visualViewport?.width || window.innerWidth;
+      
+      const spaceBelow = viewportHeight - rect.bottom - 8;
+      const spaceAbove = rect.top - 8;
+      
+      // Require ~220px to comfortably drop down. If less and above has more space, drop up.
+      const shouldDropUp = spaceBelow < 220 && spaceAbove > spaceBelow;
       setDropUp(shouldDropUp);
       
       let leftPos = rect.left;
@@ -63,11 +69,30 @@ export default function AiCorrectDropdown({
         leftPos = Math.max(10, viewportWidth - menuWidth - 10);
       }
       
+      // Bound max height to prevent overflowing viewport, with a minimum fallback
+      let maxH = shouldDropUp ? spaceAbove - 8 : spaceBelow - 8;
+      maxH = Math.max(maxH, 120);
+
       if (shouldDropUp) {
-        setPosition({ top: rect.top - 8, left: leftPos });
+        setPosition({ top: rect.top - 8, left: leftPos, maxHeight: maxH });
       } else {
-        setPosition({ top: rect.bottom + 8, left: leftPos });
+        setPosition({ top: rect.bottom + 8, left: leftPos, maxHeight: maxH });
       }
+    };
+
+    updatePosition();
+
+    if (open) {
+      // Use capture phase for scroll to catch scrolling on scrollable containers
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      window.visualViewport?.addEventListener('resize', updatePosition);
+      
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+        window.visualViewport?.removeEventListener('resize', updatePosition);
+      };
     }
   }, [open]);
 
@@ -139,6 +164,9 @@ export default function AiCorrectDropdown({
         position: 'fixed',
         top: position.top,
         left: position.left,
+        maxHeight: position.maxHeight ? `${position.maxHeight}px` : undefined,
+        overflowY: 'auto',
+        overflowX: 'hidden',
         transform: dropUp ? 'translateY(-100%)' : 'none',
       }}
       className="z-[100] w-48 p-2 rounded-xl

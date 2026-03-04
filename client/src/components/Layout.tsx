@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { LogOut, User, ChevronDown, Sun, Moon } from 'lucide-react';
 import Avatar from './Avatar';
-import Navbar from './Navbar';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 
@@ -42,7 +41,7 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-bg flex flex-col">
+    <div className={`${isChannelPage ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'} bg-bg flex flex-col`}>
       {/* Top bar - hidden on auth pages */}
       {!isAuthPage && (
         <header className="sticky top-0 z-50 glass-nav">
@@ -60,7 +59,15 @@ export default function Layout() {
             </button>
 
             {/* Theme toggle + User menu */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => navigate('/create')}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all duration-200 ease-out cursor-pointer font-medium text-sm mr-1"
+                aria-label="创建新汤"
+              >
+                <span className="text-lg leading-none">+</span>开汤
+              </button>
+
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-xl hover:bg-card/60 transition-all duration-200 ease-out cursor-pointer text-text-muted hover:text-text"
@@ -133,14 +140,11 @@ export default function Layout() {
         className={`flex-1 ${
           isChannelPage
             ? 'min-h-0 flex flex-col overflow-hidden'
-            : `${!isAuthPage ? 'pb-20 pt-2' : ''}`
+            : `${!isAuthPage ? 'pb-8 pt-2' : ''}`
         }`}
       >
         <Outlet />
       </main>
-
-      {/* Bottom navigation */}
-      <Navbar />
     </div>
   );
 }

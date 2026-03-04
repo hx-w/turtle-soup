@@ -41,20 +41,22 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
   return (
     <button
       onClick={() => navigate(`/channel/${channel.id}`)}
-      className={`glass-card p-5 text-left w-full cursor-pointer
-                 hover:border-primary/50 transition-all duration-200 ease-out
-                 hover:scale-[1.01] group ${isEnded ? 'opacity-75' : ''}`}
+      className={`bg-card shadow-sm border border-border/40
+                 p-5 text-left w-full cursor-pointer
+                 hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:border-border/80
+                 transition-all duration-300 ease-out rounded-2xl
+                 group ${isEnded ? 'opacity-70 grayscale-[20%]' : ''}`}
       aria-label={`进入房间: ${channel.title}`}
     >
       {/* Title + badges */}
-      <div className="flex items-center gap-1.5">
-        <h3 className="font-heading font-semibold text-base text-text group-hover:text-primary-light transition-colors duration-200 line-clamp-1 flex-1 min-w-0">
+      <div className="flex items-center gap-2">
+        <h3 className="font-heading font-bold text-[17px] text-text group-hover:text-primary transition-colors duration-200 line-clamp-1 flex-1 min-w-0">
           {channel.title}
         </h3>
         <span className={`flex-shrink-0 badge ${diff.color}`}>{diff.label}</span>
-        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full ${
+        <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium tracking-wide ${
           isEnded
-            ? 'bg-text-muted/15 text-text-muted'
+            ? 'bg-surface text-text-muted'
             : 'bg-yes/15 text-yes'
         }`}>
           {isEnded ? '已结束' : '进行中'}

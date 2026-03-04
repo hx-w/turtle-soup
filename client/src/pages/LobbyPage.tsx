@@ -279,7 +279,7 @@ export default function LobbyPage() {
       {/* Floating create button (mobile) */}
       <button
         onClick={() => navigate('/create')}
-        className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-primary hover:bg-primary-light
+        className="fixed bottom-8 right-4 z-40 w-14 h-14 rounded-full bg-primary hover:bg-primary-light
                    text-white shadow-lg shadow-primary/30 flex items-center justify-center
                    transition-all duration-200 ease-out cursor-pointer md:hidden
                    hover:shadow-xl hover:shadow-primary/40 active:scale-95"

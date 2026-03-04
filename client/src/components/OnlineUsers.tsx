@@ -7,6 +7,7 @@ interface OnlineUser {
   nickname: string;
   avatarSeed?: string;
   role?: 'creator' | 'host' | 'player';
+  isOnline?: boolean;
 }
 
 interface OnlineUsersProps {
@@ -15,6 +16,17 @@ interface OnlineUsersProps {
 }
 
 export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
+  // Sort users: creator/host first, then online players, then offline players
+  const sortedUsers = [...users].sort((a, b) => {
+    const roleWeight = { creator: 3, host: 2, player: 1 };
+    const weightA = roleWeight[a.role || 'player'] || 0;
+    const weightEnd = roleWeight[b.role || 'player'] || 0;
+    
+    if (weightA !== weightEnd) return weightEnd - weightA;
+    if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+    return a.nickname.localeCompare(b.nickname);
+  });
+
   return (
     <AnimatePresence>
       <motion.div
@@ -44,7 +56,7 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary-light" />
               <h3 className="font-heading font-semibold text-text">
-                在线用户
+                参与用户
               </h3>
               <span className="text-xs text-text-muted bg-surface px-2 py-0.5 rounded-full">
                 {users.length}
@@ -61,13 +73,13 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
           </div>
 
           <div className="flex-1 overflow-y-auto py-2">
-            {users.length === 0 && (
+            {sortedUsers.length === 0 && (
               <p className="text-center text-text-muted text-sm py-8">
-                暂无在线用户
+                暂无参与用户
               </p>
             )}
 
-            {users.map((user) => {
+            {sortedUsers.map((user) => {
               const avatarUrl = user.avatarSeed
                 ? `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.avatarSeed}`
                 : `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.id}`;
@@ -75,14 +87,20 @@ export default function OnlineUsers({ users, onClose }: OnlineUsersProps) {
               return (
                 <div
                   key={user.id}
-                  className="flex items-center gap-3 px-5 py-2.5 hover:bg-surface/50
-                             transition-colors duration-200"
+                  className={`flex items-center gap-3 px-5 py-2.5 hover:bg-surface/50 transition-colors duration-200 ${
+                    !user.isOnline ? 'opacity-60' : ''
+                  }`}
                 >
-                  <img
-                    src={avatarUrl}
-                    alt={user.nickname}
-                    className="w-8 h-8 rounded-full bg-surface flex-shrink-0"
-                  />
+                  <div className="relative">
+                    <img
+                      src={avatarUrl}
+                      alt={user.nickname}
+                      className="w-8 h-8 rounded-full bg-surface flex-shrink-0"
+                    />
+                    {user.isOnline && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-yes border-2 border-card rounded-full" />
+                    )}
+                  </div>
                   <span className="text-sm text-text truncate flex-1">
                     @{user.nickname}
                   </span>
