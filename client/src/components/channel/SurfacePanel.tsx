@@ -54,7 +54,10 @@ export default function SurfacePanel({ surface, isCreator, isActive, onEdit }: S
 
           {/* Fade mask when collapsed but overflowing - blend into card background */}
           {!isExpanded && isOverflowing && (
-            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-card via-card/80 to-transparent pointer-events-none" />
+            <div 
+              className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-card from-30% via-card/90 via-60% to-transparent cursor-pointer"
+              onClick={() => setIsExpanded(true)}
+            />
           )}
 
           {/* Expand/Collapse Toggle Button */}

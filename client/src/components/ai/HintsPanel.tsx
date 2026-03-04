@@ -11,6 +11,7 @@ interface HintsPanelProps {
   channelEnded: boolean;
   onRequestHint: () => void;
   onTogglePublic: (hintId: string, isPublic: boolean) => void;
+  keyboardHeight?: number;
 }
 
 export interface HintsPanelHandle {
@@ -19,7 +20,7 @@ export interface HintsPanelHandle {
 
 const HintsPanel = forwardRef<HintsPanelHandle, HintsPanelProps>(
   function HintsPanel(
-    { hints, myRemaining, hintLoading, currentUserId, channelEnded, onRequestHint, onTogglePublic },
+    { hints, myRemaining, hintLoading, currentUserId, channelEnded, onRequestHint, onTogglePublic, keyboardHeight = 0 },
     ref,
   ) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -57,8 +58,11 @@ const HintsPanel = forwardRef<HintsPanelHandle, HintsPanelProps>(
         </div>
 
         {/* Fixed bottom button */}
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-bg/95 backdrop-blur-md border-t border-border/30">
-          <div className="w-full max-w-5xl mx-auto px-4 py-3">
+        <div 
+          className="fixed left-0 right-0 z-20 bg-bg/95 backdrop-blur-md border-t border-border/30 transition-[bottom] duration-100"
+          style={{ bottom: keyboardHeight }}
+        >
+          <div className="w-full max-w-5xl mx-auto px-4 pt-2 pb-[env(safe-area-inset-bottom)]">
             <button
               type="button"
               onClick={onRequestHint}

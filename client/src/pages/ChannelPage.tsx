@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useChannelData } from '../hooks/useChannelData';
 import { useChannelSocket } from '../hooks/useChannelSocket';
 import { useDiscussion } from '../hooks/useDiscussion';
+import { useKeyboardAdjust } from '../hooks/useKeyboardAdjust';
 import ChannelHeader from '../components/channel/ChannelHeader';
 import SurfacePanel from '../components/channel/SurfacePanel';
 import ActionButtons from '../components/channel/ActionButtons';
@@ -64,6 +65,7 @@ export default function ChannelPage() {
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
 
+  const keyboardHeight = useKeyboardAdjust();
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const discussionRef = useRef<DiscussionPanelHandle>(null);
@@ -288,9 +290,10 @@ export default function ChannelPage() {
           channelEnded={channelEnded}
           onRequestHint={handleRequestHint}
           onTogglePublic={handleToggleHintPublic}
+          keyboardHeight={keyboardHeight}
         />
       ) : activeTab === 'qa' ? (
-        <div className="flex flex-col pb-20">
+        <div className="flex flex-col pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
           <div ref={timelineRef} className="flex flex-col pb-2 space-y-1">
             {questions.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-text-muted">
@@ -315,7 +318,7 @@ export default function ChannelPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col pb-20">
+        <div className="flex flex-col pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
           <DiscussionPanel
             ref={discussionRef}
             messages={discussion.messages}
@@ -329,8 +332,11 @@ export default function ChannelPage() {
       )}
 
       {/* Fixed bottom input bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-bg/95 backdrop-blur-md border-t border-border/30">
-        <div className="w-full max-w-5xl mx-auto">
+      <div 
+        className="fixed left-0 right-0 z-20 bg-bg/95 backdrop-blur-md border-t border-border/30 transition-[bottom] duration-100"
+        style={{ bottom: keyboardHeight }}
+      >
+        <div className="w-full max-w-5xl mx-auto pt-2 pb-[env(safe-area-inset-bottom)]">
           {activeTab === 'qa' ? (
             isActive && !isHostOrCreator ? (
               <PlayerInputPanel
