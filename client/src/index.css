@@ -162,4 +162,9 @@
   :is(.dark .glass-card) {
     @apply bg-card/95 shadow-black/20;
   }
+
+  /* Safe area padding for bottom elements on iOS */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

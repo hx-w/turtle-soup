@@ -8,3 +8,5 @@ export { generateHint } from './hint';
 export { evaluateProgress } from './progress';
 export { generateReview } from './review';
 export { scheduleAiAnswer, cancelAiAnswer, recoverPendingQuestions } from './scheduler';
+export { analyzeClueGraph, getClueGraph, shouldReanalyze, addHintToGraph } from './clue';
+export type { ClueNode, ClueEdge, ClueGraphData } from './clue';

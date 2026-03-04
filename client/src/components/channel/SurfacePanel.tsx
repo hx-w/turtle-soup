@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { BookOpen, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, Pencil, ChevronUp } from 'lucide-react';
 
 interface SurfacePanelProps {
   surface: string;
@@ -52,26 +52,26 @@ export default function SurfacePanel({ surface, isCreator, isActive, onEdit }: S
             {surface}
           </p>
 
-          {/* Fade mask when collapsed but overflowing - blend into card background */}
+          {/* Fade mask with expand hint when collapsed */}
           {!isExpanded && isOverflowing && (
             <div 
-              className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-card from-30% via-card/90 via-60% to-transparent cursor-pointer"
+              className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-card from-40% via-card/90 via-70% to-transparent cursor-pointer flex items-end justify-center pb-3"
               onClick={() => setIsExpanded(true)}
-            />
+            >
+              <span className="px-3 py-1.5 rounded-full bg-surface/90 text-xs font-medium text-text-muted backdrop-blur-sm hover:bg-surface hover:text-text transition-colors duration-150">
+                点击展开
+              </span>
+            </div>
           )}
 
-          {/* Expand/Collapse Toggle Button */}
-          {isOverflowing && (
+          {/* Collapse button - only show when expanded */}
+          {isExpanded && isOverflowing && (
             <div className="flex mt-3">
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => setIsExpanded(false)}
                 className="flex items-center gap-1 text-[13px] font-semibold text-primary hover:text-primary-light transition-colors duration-200 cursor-pointer"
               >
-                {isExpanded ? (
-                  <>收起 <ChevronUp className="w-3.5 h-3.5" /></>
-                ) : (
-                  <>展开阅读 <ChevronDown className="w-3.5 h-3.5" /></>
-                )}
+                收起 <ChevronUp className="w-3.5 h-3.5" />
               </button>
             </div>
           )}

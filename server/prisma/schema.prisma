@@ -108,6 +108,7 @@ model Channel {
   aiReview            String?
   aiProgress          Float     @default(0)
   aiHints             AiHint[]
+  clueGraph           ClueGraph?
 
   @@index([status])
   @@index([createdAt])
@@ -198,4 +199,19 @@ model AiHint {
   user        User     @relation(fields: [userId], references: [id])
 
   @@index([channelId, userId])
+}
+
+model ClueGraph {
+  id            String   @id @default(uuid())
+  channelId     String   @unique
+  channel       Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  nodes         Json     @default("[]")
+  edges         Json     @default("[]")
+  version       Int      @default(1)
+  questionCount Int      @default(0)
+  analyzedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([channelId])
 }

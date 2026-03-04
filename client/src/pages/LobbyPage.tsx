@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, SlidersHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -33,11 +33,11 @@ export default function LobbyPage() {
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  const loadChannels = useCallback(async () => {
-    // Only show loading skeleton on first load (when channels list is empty)
-    const shouldShowLoading = channels.length === 0;
+  // Use ref to track if we've already loaded data (persists across remounts within session)
+  const hasLoadedOnce = useRef(false);
+  const loadChannels = useCallback(async (forceShowLoading = false) => {
+    // Only show loading on first load ever (when channels list is empty and hasn't loaded before)
+    const shouldShowLoading = forceShowLoading || (channels.length === 0 && !hasLoadedOnce.current);
     if (shouldShowLoading) setIsLoading(true);
     
     try {
@@ -48,12 +48,14 @@ export default function LobbyPage() {
         tag: tag || undefined,
         page,
       });
-      setIsInitialized(true);
+      hasLoadedOnce.current = true;
     } finally {
       setIsLoading(false);
     }
-  }, [fetchChannels, status, search, difficulty, tag, page, channels.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchChannels, status, search, difficulty, tag, page]);
 
+  // Load on mount and when filters change
   useEffect(() => {
     loadChannels();
   }, [loadChannels]);
@@ -71,18 +73,16 @@ export default function LobbyPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchChannels, status, search, difficulty, tag, page]);
 
-  // Debounced search
+  // Debounced search - reset to page 1 (triggers reload via page dependency)
   useEffect(() => {
     const timer = setTimeout(() => {
       setPage(1);
-      loadChannels();
     }, 400);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  // Show skeleton only on initial load (when channels list is empty)
-  const showSkeleton = isLoading && !isInitialized;
+  // Show skeleton only when loading and no data exists yet
+  const showSkeleton = isLoading && channels.length === 0;
 
   // Listen for new channels in lobby (only when viewing active channels on page 1)
   useEffect(() => {

@@ -55,9 +55,9 @@ export default function Layout() {
               <img 
                 src="/icons/icon-192x192.png" 
                 alt="" 
-                className="w-8 h-8 rounded-lg shadow-sm group-hover:shadow-md transition-shadow duration-200" 
+                className="w-8 h-8 group-hover:opacity-80 transition-opacity duration-200" 
               />
-              <span className="font-heading font-bold text-lg text-text group-hover:text-primary transition-colors duration-200">
+              <span className="font-heading font-bold text-lg text-text leading-none group-hover:text-primary transition-colors duration-200">
                 海龟汤
               </span>
             </button>

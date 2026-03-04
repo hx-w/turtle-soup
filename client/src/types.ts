@@ -123,7 +123,7 @@ export interface ChatMessage {
   userId: string;
   content: string;
   createdAt: string;
-  user: { id: string; nickname: string; avatarSeed: string };
+  user: { id: string; nickname: string; avatarSeed: string; role: 'creator' | 'host' | 'player' };
 }
 
 export interface ChatListResponse {
@@ -195,4 +195,36 @@ export interface TimelineEvent {
   questionId: string | null;
   metadata: Record<string, any> | null;
   createdAt: string;
+}
+
+export type ClueNodeStatus = 'confirmed' | 'partial' | 'excluded' | 'hint';
+
+export type ClueCategory = '人物' | '时间' | '地点' | '原因' | '方式' | '物品' | '状态' | '关系' | '事件' | '其他';
+
+export type ClueEdgeRelation = 'temporal' | 'causal' | 'contradictory' | 'related';
+
+export interface ClueNode {
+  id: string;
+  content: string;
+  category: ClueCategory;
+  status: ClueNodeStatus;
+  sourceQuestionIds: string[];
+  isKey: boolean;
+}
+
+export interface ClueEdge {
+  sourceId: string;
+  targetId: string;
+  relation: ClueEdgeRelation;
+  description?: string;
+}
+
+export interface ClueGraphData {
+  nodes: ClueNode[];
+  edges: ClueEdge[];
+}
+
+export interface ApiError {
+  error: string;
+  status?: number;
 }

@@ -1,15 +1,15 @@
 
-import { MessageSquare, HelpCircle, Lightbulb } from 'lucide-react';
+import { MessageSquare, HelpCircle, Lightbulb, Network } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-export type TabKey = 'qa' | 'discussion' | 'hints';
+export type TabKey = 'qa' | 'discussion' | 'hints' | 'clues';
 
 interface ChannelTabsProps {
-
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
   answeredCount: number;
   unreadCount: number;
+  hintsCount: number;
   aiHintEnabled?: boolean;
 }
 
@@ -20,11 +20,11 @@ interface TabDef {
 }
 
 export default function ChannelTabs({
-
   activeTab,
   onTabChange,
   answeredCount,
   unreadCount,
+  hintsCount,
   aiHintEnabled = false,
 }: ChannelTabsProps) {
   const tabs: TabDef[] = [
@@ -32,8 +32,14 @@ export default function ChannelTabs({
     { key: 'discussion', label: '讨论', icon: MessageSquare },
   ];
 
+  // Clues board tab - shows visual clue graph (always show if AI hints enabled)
   if (aiHintEnabled) {
-    tabs.push({ key: 'hints', label: '线索', icon: Lightbulb });
+    tabs.push({ key: 'clues', label: '线索板', icon: Network });
+  }
+
+  // Legacy hints list tab
+  if (aiHintEnabled) {
+    tabs.push({ key: 'hints', label: '线索列表', icon: Lightbulb });
   }
 
   return (
@@ -63,11 +69,17 @@ export default function ChannelTabs({
                 </span>
               )}
 
-              {/* Unread dot for discussion */}
-              {tab.key === 'discussion' && unreadCount > 0 && !isActive && (
-                <span className="relative flex h-2 w-2 ml-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+              {/* Count badge for discussion */}
+              {tab.key === 'discussion' && unreadCount > 0 && (
+                <span className="text-[11px] font-bold bg-accent/10 text-accent px-1.5 py-0.5 rounded-md ml-0.5">
+                  {unreadCount}
+                </span>
+              )}
+
+              {/* Count badge for clues/hints */}
+              {(tab.key === 'clues' || tab.key === 'hints') && hintsCount > 0 && (
+                <span className="text-[11px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md ml-0.5">
+                  {hintsCount}
                 </span>
               )}
             </button>

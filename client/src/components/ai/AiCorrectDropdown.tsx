@@ -71,7 +71,7 @@ export default function AiCorrectDropdown({
       
       // Bound max height to prevent overflowing viewport, with a minimum fallback
       let maxH = shouldDropUp ? spaceAbove - 8 : spaceBelow - 8;
-      maxH = Math.max(maxH, 120);
+      maxH = Math.max(maxH, 240);
 
       if (shouldDropUp) {
         setPosition({ top: rect.top - 8, left: leftPos, maxHeight: maxH });

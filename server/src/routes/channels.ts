@@ -11,6 +11,7 @@ import { TimelineService } from '../services/timeline';
 import { scheduleAiAnswer, cancelAiAnswer } from '../services/ai/scheduler';
 import { evaluateProgress } from '../services/ai/progress';
 import { generateReview } from '../services/ai/review';
+import { analyzeClueGraph, getClueGraph, shouldReanalyze, addHintToGraph } from '../services/ai/clue';
 
 type Request = ExpressRequest<Record<string, string>>;
 
@@ -407,6 +408,17 @@ router.put('/:id/questions/:qid/answer', authRequired, validate(answerSchema), a
         const io = getIO();
         io.to(channelId).emit(SocketEvents.PROGRESS_UPDATED, { channelId, progress });
       });
+      
+      // Async clue graph analysis (only if AI hints enabled and answer is relevant)
+      if (channel.aiHintEnabled && answer !== 'irrelevant') {
+        shouldReanalyze(channelId).then((needAnalyze) => {
+          if (needAnalyze) {
+            analyzeClueGraph(channelId).catch((err) => {
+              logger.warn('Clue graph analysis failed', { channelId, error: String(err) });
+            });
+          }
+        });
+      }
     }
     if (channel && channel.maxQuestions > 0) {
       const answeredCount = await prisma.question.count({
@@ -749,10 +761,29 @@ router.get('/:id/chat', authRequired, async (req: Request, res: Response) => {
       },
     });
 
-    const hasMore = messages.length > take;
-    if (hasMore) messages.pop();
+    // Get role for each user in this channel
+    const userIds = [...new Set(messages.map(m => m.userId))];
+    const members = await prisma.channelMember.findMany({
+      where: {
+        channelId,
+        userId: { in: userIds },
+      },
+      select: { userId: true, role: true },
+    });
+    const roleMap = new Map(members.map(m => [m.userId, m.role]));
 
-    res.json({ messages: messages.reverse(), hasMore });
+    const messagesWithRole = messages.map(m => ({
+      ...m,
+      user: {
+        ...m.user,
+        role: roleMap.get(m.userId) || 'player',
+      },
+    }));
+
+    const hasMore = messagesWithRole.length > take;
+    if (hasMore) messagesWithRole.pop();
+
+    res.json({ messages: messagesWithRole.reverse(), hasMore });
   } catch (err) {
     logger.error('Chat messages fetch failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });
@@ -780,8 +811,8 @@ router.post('/:id/chat', authRequired, validate(chatSchema), async (req: Request
       return;
     }
 
-    // During active game: only players can chat. After game ends: everyone can chat.
-    if (channel.status === 'active' && (member.role === 'host' || member.role === 'creator')) {
+    // During active game: only players and creator can chat. After game ends: everyone can chat.
+    if (channel.status === 'active' && member.role === 'host') {
       res.status(403).json({ error: '游戏进行中主持人不能在讨论区发言' });
       return;
     }
@@ -1001,4 +1032,53 @@ router.get('/:id/hints', authRequired, async (req: Request, res: Response) => {
 // Stats route: add aiReview to response
 // (Handled inline in existing stats route via channel.aiReview)
 
+// Get clue graph
+router.get('/:id/clues', authRequired, async (req: Request, res: Response) => {
+  try {
+    const channelId = req.params.id;
+
+    const channel = await prisma.channel.findUnique({ where: { id: channelId } });
+    if (!channel) {
+      res.status(404).json({ error: '频道不存在' });
+      return;
+    }
+
+    // Check if re-analysis is needed
+    const needReanalyze = await shouldReanalyze(channelId);
+    if (needReanalyze) {
+      // Trigger async analysis
+      analyzeClueGraph(channelId).catch((err) => {
+        logger.warn('Clue graph analysis failed', { channelId, error: String(err) });
+      });
+    }
+
+    const clueGraph = await getClueGraph(channelId);
+    res.json(clueGraph || { nodes: [], edges: [] });
+  } catch (err) {
+    logger.error('Clue graph fetch failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Trigger clue graph analysis
+router.post('/:id/clues/analyze', authRequired, async (req: Request, res: Response) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user!.userId;
+
+    const member = await prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+    });
+    if (!member) {
+      res.status(403).json({ error: '你不是该频道的成员' });
+      return;
+    }
+
+    const result = await analyzeClueGraph(channelId);
+    res.json(result || { nodes: [], edges: [] });
+  } catch (err) {
+    logger.error('Clue graph analysis failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
 export default router;

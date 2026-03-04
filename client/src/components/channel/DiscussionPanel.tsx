@@ -2,7 +2,7 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, Loader2, ChevronUp } from 'lucide-react';
 import type { ChatMessage } from '../../types';
-
+import RoleBadge from '../RoleBadge';
 interface DiscussionPanelProps {
   messages: ChatMessage[];
   currentUserId?: string;
@@ -42,6 +42,7 @@ function ChatBubble({
   grouped: boolean;
 }) {
   const avatarUrl = `https://api.dicebear.com/7.x/thumbs/svg?seed=${message.user.avatarSeed}`;
+  const isCreator = message.user.role === 'creator';
 
   if (isOwn) {
     return (
@@ -63,7 +64,7 @@ function ChatBubble({
   }
 
   return (
-    <div className={`flex gap-2.5 px-4 ${grouped ? 'mt-0.5 pl-[52px]' : 'mt-3'}`}>
+    <div className={`flex gap-2.5 px-4 ${grouped ? 'mt-0.5 pl-[58px]' : 'mt-3'}`}>
       {!grouped && (
         <img
           src={avatarUrl}
@@ -77,6 +78,7 @@ function ChatBubble({
             <span className="text-xs font-medium text-text-muted">
               {message.user.nickname}
             </span>
+            {isCreator && <RoleBadge role="creator" size="sm" />}
             <span className="text-xs text-text-muted/60">
               {formatTime(message.createdAt)}
             </span>
