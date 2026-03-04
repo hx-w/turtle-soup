@@ -33,9 +33,9 @@ export default function ClueEdge({ edge, sourcePos, targetPos }: ClueEdgeProps) 
   const style = relationStyles[edge.relation];
   
   // Calculate path
-  // Node center offset (approximate node size)
-  const nodeOffsetX = 90; // Half of approximate node width
-  const nodeOffsetY = 40; // Half of approximate node height
+  // Node center offset (approximate node size due to varying text length)
+  const nodeOffsetX = 100; // Half of approximate node max-width (200px / 2)
+  const nodeOffsetY = 50; // Half of approximate node min-height
   
   const startX = sourcePos.x + nodeOffsetX;
   const startY = sourcePos.y + nodeOffsetY;

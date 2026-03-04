@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { api } from '../lib/api';
 import type { ClueGraphData, ClueNode, ClueEdge, AiHint } from '../types';
+import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force';
 
 interface UseClueGraphOptions {
   channelId: string | undefined;
@@ -53,85 +54,120 @@ export const categoryIcons: Record<string, string> = {
   '其他': 'Circle',
 };
 
-// Simple grid layout algorithm
+// Force-directed layout algorithm using d3-force
 function layoutNodes(
   nodes: ClueNode[],
+  edges: ClueEdge[],
   savedPositions?: Record<string, { x: number; y: number }>,
 ): PositionedClueNode[] {
   if (nodes.length === 0) return [];
 
-  // Group nodes by status
-  const groups = {
-    key: nodes.filter((n) => n.isKey),
-    confirmed: nodes.filter((n) => n.status === 'confirmed' && !n.isKey),
-    partial: nodes.filter((n) => n.status === 'partial'),
-    excluded: nodes.filter((n) => n.status === 'excluded'),
-  };
+  const NODE_RADIUS = 180; // Collision radius, larger for spreading
+  const IDEAL_EDGE_LENGTH = 380; // Longer edges to untangle knots
+  const REPULSION = -6000; // Very strong repulsion to act like tiling
+  const SIMULATION_TICKS = 400; // More ticks to ensure graph unfolds without crossing
 
-  const result: PositionedClueNode[] = [];
-  let currentY = LAYOUT.START_Y;
-
-  // Layout each group
-  Object.entries(groups).forEach(([, groupNodes]) => {
-    if (groupNodes.length === 0) return;
-
-    // Add spacing between groups
-    if (result.length > 0) {
-      currentY += 30;
-    }
-
-    groupNodes.forEach((node, i) => {
-      // Check for saved position first
-      const savedPos = savedPositions?.[node.id];
-      
-      result.push({
-        ...node,
-        position: savedPos || {
-          x: LAYOUT.START_X + (i % LAYOUT.COLS) * LAYOUT.GAP_X,
-          y: currentY + Math.floor(i / LAYOUT.COLS) * LAYOUT.GAP_Y,
-        },
-      });
-    });
-
-    // Update Y for next group
-    const rows = Math.ceil(groupNodes.length / LAYOUT.COLS);
-    currentY += rows * LAYOUT.GAP_Y;
+  // Create D3 nodes. Note we must pass objects D3 can mutate.
+  // We use fx/fy to pin nodes that have saved positions.
+  const d3Nodes = nodes.map((node, i) => {
+    const saved = savedPositions?.[node.id];
+    return {
+      ...node,
+      // D3 uses x, y for current pos, and fx, fy for fixed pos (pinned)
+      x: saved ? saved.x : undefined,
+      y: saved ? saved.y : undefined,
+      fx: saved ? saved.x : undefined,
+      fy: saved ? saved.y : undefined,
+      index: i,
+    } as any;
   });
 
-  return result;
+  const d3Links = edges.map(edge => ({
+    source: edge.sourceId,
+    target: edge.targetId,
+  }));
+
+  // Run simulation only if there are unpinned nodes
+  const unpinned = d3Nodes.filter((n: any) => n.fx === undefined);
+  if (unpinned.length === 0) {
+    return d3Nodes.map((n: any) => {
+      const { index, vx, vy, x, y, fx, fy, ...node } = n;
+      return { ...node, position: { x: fx!, y: fy! } } as PositionedClueNode;
+    });
+  }
+
+  // Calculate center of pinned nodes to pull unpinned nodes towards them
+  let cx = LAYOUT.START_X + 400, cy = LAYOUT.START_Y + 300;
+  const pinned = d3Nodes.filter((n: any) => n.fx !== undefined);
+  if (pinned.length > 0) {
+    cx = pinned.reduce((sum: number, n: any) => sum + n.fx, 0) / pinned.length;
+    cy = pinned.reduce((sum: number, n: any) => sum + n.fy, 0) / pinned.length;
+  }
+
+  // Create simulation
+  const simulation = forceSimulation(d3Nodes)
+    .force("link", forceLink(d3Links).id((d: any) => d.id).distance(IDEAL_EDGE_LENGTH).iterations(2))
+    .force("charge", forceManyBody().strength(REPULSION).distanceMax(1500))
+    .force("collide", forceCollide().radius(NODE_RADIUS).iterations(4))
+    .force("center", forceCenter(cx, cy).strength(0.01)); // Lower center gravity for broader spread
+
+  // Run simulation statically to completion
+  simulation.stop();
+  simulation.tick(SIMULATION_TICKS);
+
+  // Normalize coordinates so the minimum is at least START_X, START_Y
+  const hasSavedPositions = Object.keys(savedPositions || {}).length > 0;
+  const minX = Math.min(...d3Nodes.map((n: any) => n.x || 0));
+  const minY = Math.min(...d3Nodes.map((n: any) => n.y || 0));
+
+  return d3Nodes.map((n: any) => {
+    const { index, vx, vy, x, y, fx, fy, ...node } = n;
+    return {
+      ...(node as ClueNode),
+      position: {
+        x: fx !== undefined ? fx : (hasSavedPositions ? x : x - minX + LAYOUT.START_X),
+        y: fy !== undefined ? fy : (hasSavedPositions ? y : y - minY + LAYOUT.START_Y),
+      }
+    };
+  });
 }
 
-// Layout hint nodes separately (below main nodes)
+// Layout hint nodes separately
 function layoutHints(
   hints: { id: string; content: string }[],
   yOffset: number,
+  savedPositions?: Record<string, { x: number; y: number }>,
 ): PositionedClueNode[] {
-  return hints.map((hint, i) => ({
-    id: `hint_${hint.id}`,
-    content: hint.content,
-    category: '其他' as const,
-    status: 'hint' as const,
-    sourceQuestionIds: [],
-    isKey: false,
-    position: {
-      x: LAYOUT.START_X + (i % LAYOUT.COLS) * LAYOUT.GAP_X,
-      y: yOffset + Math.floor(i / LAYOUT.COLS) * LAYOUT.GAP_Y,
-    },
-  }));
+  // Use simple grid for hints since they have no edges
+  return hints.map((hint, i) => {
+    const id = `hint_${hint.id}`;
+    return {
+      id,
+      content: hint.content,
+      category: '其他' as const,
+      status: 'hint' as const,
+      sourceQuestionIds: [],
+      isKey: false,
+      position: savedPositions?.[id] || {
+        x: LAYOUT.START_X + (i % 4) * (180 + 20),
+        y: yOffset + Math.floor(i / 4) * (120 + 20),
+      },
+    };
+  });
 }
 
 // Calculate canvas size dynamically based on nodes
 export function calculateCanvasSize(nodes: PositionedClueNode[]): { width: number; height: number } {
   if (nodes.length === 0) {
-    return { width: LAYOUT.MIN_CANVAS_SIZE, height: LAYOUT.MIN_CANVAS_SIZE };
+    return { width: 800, height: 600 };
   }
 
-  const maxX = Math.max(...nodes.map((n) => n.position.x)) + 200; // Node width + padding
-  const maxY = Math.max(...nodes.map((n) => n.position.y)) + 120; // Node height + padding
+  const maxX = Math.max(...nodes.map((n) => n.position.x)) + 300; // Node width + padding
+  const maxY = Math.max(...nodes.map((n) => n.position.y)) + 200; // Node height + padding
 
   return {
-    width: Math.max(LAYOUT.MIN_CANVAS_SIZE, maxX),
-    height: Math.max(LAYOUT.MIN_CANVAS_SIZE, maxY),
+    width: Math.max(800, maxX),
+    height: Math.max(600, maxY),
   };
 }
 
@@ -142,16 +178,16 @@ function loadSavedPositions(channelId: string): Record<string, { x: number; y: n
     const key = `clue-positions-v${POSITION_VERSION}-${channelId}`;
     const saved = localStorage.getItem(key);
     if (!saved) return undefined;
-    
+
     const data = JSON.parse(saved) as SavedLayout;
-    
+
     // Version migration if needed
     if (data.version !== POSITION_VERSION) {
       // Future: implement migration logic here
       console.warn('Layout version mismatch, resetting positions');
       return undefined;
     }
-    
+
     return data.positions;
   } catch {
     return undefined;
@@ -168,7 +204,7 @@ function savePositions(channelId: string, positions: Record<string, { x: number;
     };
     const key = `clue-positions-v${POSITION_VERSION}-${channelId}`;
     localStorage.setItem(key, JSON.stringify(data));
-    
+
     // Clean up old versions
     for (let v = 1; v < POSITION_VERSION; v++) {
       localStorage.removeItem(`clue-positions-v${v}-${channelId}`);
@@ -196,19 +232,19 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
     try {
       const data = await api.get<ClueGraphData>(`/channels/${channelId}/clues`);
       const savedPositions = loadSavedPositions(channelId);
-      
+
       // Separate hint nodes from regular nodes
       const regularNodes = data.nodes.filter((n) => n.status !== 'hint');
       const hintNodesData = data.nodes.filter((n) => n.status === 'hint');
-      
+
       // Layout regular nodes
-      const positionedNodes = layoutNodes(regularNodes, savedPositions);
-      
+      const positionedNodes = layoutNodes(regularNodes, data.edges, savedPositions);
+
       // Calculate Y offset for hints
       const maxY = positionedNodes.length > 0
         ? Math.max(...positionedNodes.map((n) => n.position.y))
         : LAYOUT.START_Y;
-      
+
       // Layout hint nodes
       const positionedHints = layoutHints(
         hintNodesData.map((h) => ({
@@ -216,6 +252,7 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
           content: h.content,
         })),
         maxY + LAYOUT.HINT_AREA_OFFSET,
+        savedPositions
       );
 
       setState({
@@ -275,7 +312,7 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
       const hintMaxY = prev.hintNodes.length > 0
         ? Math.max(...prev.hintNodes.map((n) => n.position.y))
         : maxY + LAYOUT.HINT_AREA_OFFSET;
-      
+
       const newHintNode: PositionedClueNode = {
         id: `hint_${hint.id}`,
         content: hint.content,

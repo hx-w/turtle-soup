@@ -1,8 +1,7 @@
 
-import { MessageSquare, HelpCircle, Lightbulb, Network } from 'lucide-react';
+import { MessageSquare, HelpCircle, Network } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-
-export type TabKey = 'qa' | 'discussion' | 'hints' | 'clues';
+export type TabKey = 'qa' | 'discussion' | 'clues';
 
 interface ChannelTabsProps {
   activeTab: TabKey;
@@ -32,14 +31,10 @@ export default function ChannelTabs({
     { key: 'discussion', label: '讨论', icon: MessageSquare },
   ];
 
-  // Clues board tab - shows visual clue graph (always show if AI hints enabled)
-  if (aiHintEnabled) {
-    tabs.push({ key: 'clues', label: '线索板', icon: Network });
-  }
 
-  // Legacy hints list tab
+  // Clues board tab - shows visual clue graph with hints list integrated
   if (aiHintEnabled) {
-    tabs.push({ key: 'hints', label: '线索列表', icon: Lightbulb });
+    tabs.push({ key: 'clues', label: '线索', icon: Network });
   }
 
   return (
@@ -76,8 +71,8 @@ export default function ChannelTabs({
                 </span>
               )}
 
-              {/* Count badge for clues/hints */}
-              {(tab.key === 'clues' || tab.key === 'hints') && hintsCount > 0 && (
+              {/* Count badge for clues */}
+              {tab.key === 'clues' && hintsCount > 0 && (
                 <span className="text-[11px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md ml-0.5">
                   {hintsCount}
                 </span>

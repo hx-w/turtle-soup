@@ -389,35 +389,38 @@ export default function ClueBoard({
               </div>
             )}
           </div>
-
-          {/* Request Hint Button */}
-          <div className="pointer-events-auto flex-shrink-0 mt-auto">
-            <button
-              type="button"
-              onClick={onRequestHint}
-              disabled={disabled}
-              className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl
-                font-medium text-[15px] shadow-xl backdrop-blur-xl transition-all duration-300
-                ${disabled
-                  ? 'bg-surface/80 text-text-muted cursor-not-allowed border border-border/40'
-                  : 'bg-primary text-white hover:bg-primary-light cursor-pointer shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 border border-primary/20'
-                }`}
-            >
-              {hintLoading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>请求中...</span>
-                </>
-              ) : (
-                <>
-                  <Lightbulb className="w-4 h-4" />
-                  <span>{channelEnded ? '游戏已结束' : exhausted ? '线索已用完' : `请求线索 (${myRemaining})`}</span>
-                </>
-              )}
-            </button>
-          </div>
+          {/* Request Hint Button was here, now moved to the bottom */}
         </div>
       )}
+
+      {/* Bottom Request Button (Restored to bottom center like input) */}
+      <div className="flex-shrink-0 border-t border-border/30 bg-bg/95 backdrop-blur-md relative z-30 pb-safe">
+        <div className="w-full max-w-3xl mx-auto px-4 py-3">
+          <button
+            type="button"
+            onClick={onRequestHint}
+            disabled={disabled}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl
+              font-medium text-[15px] shadow-sm transition-all duration-300
+              ${disabled
+                ? 'bg-surface/80 text-text-muted cursor-not-allowed border border-border/40'
+                : 'bg-primary text-white hover:bg-primary-light cursor-pointer shadow-primary/10 hover:-translate-y-0.5'
+              }`}
+          >
+            {hintLoading ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                <span>请求中...</span>
+              </>
+            ) : (
+              <>
+                <Lightbulb className="w-5 h-5" />
+                <span>{channelEnded ? '游戏已结束' : exhausted ? '线索已用完' : `请求线索 (${myRemaining})`}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* Selected node detail modal */}
       <AnimatePresence>

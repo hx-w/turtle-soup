@@ -2,8 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, AlertTriangle, HelpCircle, ArrowUp, ArrowDown } from 'lucide-react';
-import HintsPanel, { type HintsPanelHandle } from '../components/ai/HintsPanel';
-import { ClueBoard } from '../components/clue';
+import ClueBoard from '../components/clue/ClueBoard';
 import { toast } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import { useChannelData } from '../hooks/useChannelData';
@@ -69,7 +68,6 @@ export default function ChannelPage() {
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const discussionRef = useRef<DiscussionPanelHandle>(null);
-  const hintsRef = useRef<HintsPanelHandle>(null);
 
   const answeredCount = questions.filter((q) => q.status === 'answered').length;
   const hasPending = questions.some(
@@ -120,7 +118,7 @@ export default function ChannelPage() {
           discussion.fetchMessages();
         }
       }
-      if (tab === 'hints') {
+      if (tab === 'clues') {
         loadHints();
       }
     },
@@ -282,18 +280,7 @@ export default function ChannelPage() {
       />
 
 
-      {activeTab === 'hints' ? (
-        <HintsPanel
-          ref={hintsRef}
-          hints={hints}
-          myRemaining={hintRemaining}
-          hintLoading={hintLoading}
-          currentUserId={user?.id ?? ''}
-          channelEnded={channelEnded}
-          onRequestHint={handleRequestHint}
-          onTogglePublic={handleToggleHintPublic}
-        />
-      ) : activeTab === 'clues' ? (
+      {activeTab === 'clues' ? (
         <ClueBoard
           channelId={channelId!}
           hints={hints}

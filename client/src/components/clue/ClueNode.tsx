@@ -38,25 +38,24 @@ const categoryIconMap: Record<string, React.ComponentType<{ className?: string }
 
 const statusStyles = {
   confirmed: `
-    bg-gradient-to-br from-yes/15 to-yes/5
-    border-2 border-yes/40
-    shadow-lg shadow-yes/10
+    bg-white/80 dark:bg-card/80
+    border border-yes/30
+    shadow-[0_8px_30px_rgb(var(--color-yes),0.15)]
   `,
   partial: `
-    bg-gradient-to-br from-orange-500/15 to-orange-500/5
-    border-2 border-orange-500/40 border-dashed
-    shadow-lg shadow-orange-500/10
+    bg-white/80 dark:bg-card/80
+    border border-orange-500/30 border-dashed
+    shadow-[0_8px_30px_rgba(249,115,22,0.15)]
   `,
   excluded: `
-    bg-card/40
-    border border-border/30
+    bg-white/40 dark:bg-card/40
+    border border-border/20
     opacity-60
   `,
   hint: `
-    bg-gradient-to-br from-primary/15 to-accent/10
-    border-2 border-primary/30
-    shadow-lg shadow-primary/20
-    ring-1 ring-primary/20
+    bg-white/80 dark:bg-card/80
+    border border-primary/30
+    shadow-[0_8px_30px_rgb(var(--color-primary),0.15)]
   `,
 };
 
@@ -92,11 +91,11 @@ export default function ClueNode({ node, onClick }: ClueNodeProps) {
     >
       <div
         className={`
-          relative min-w-[140px] max-w-[180px]
-          backdrop-blur-xl rounded-xl px-3 py-2.5
-          transition-all duration-200 hover:scale-105
+          relative min-w-[160px] max-w-[200px]
+          backdrop-blur-2xl rounded-2xl px-4 py-3
+          transition-all duration-300 hover:scale-105 hover:-translate-y-1
           ${statusStyles[node.status]}
-          ${node.isKey ? 'ring-2 ring-accent/50 ring-offset-2 ring-offset-bg scale-110' : ''}
+          ${node.isKey ? 'ring-2 ring-accent/50 ring-offset-2 ring-offset-bg scale-105' : ''}
         `}
       >
         {/* Key indicator */}
