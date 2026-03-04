@@ -28,7 +28,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-turtle}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-turtle} -d ${POSTGRES_DB:-turtle_soup}"]
       interval: 5s
       timeout: 5s
       retries: 5

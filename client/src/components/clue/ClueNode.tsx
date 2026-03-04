@@ -38,24 +38,25 @@ const categoryIconMap: Record<string, React.ComponentType<{ className?: string }
 
 const statusStyles = {
   confirmed: `
-    bg-white/80 dark:bg-card/80
-    border border-yes/30
-    shadow-[0_8px_30px_rgb(var(--color-yes),0.15)]
+    bg-white dark:bg-gray-800/80
+    border border-gray-200/80 dark:border-gray-700/50
+    shadow-sm hover:shadow-md
   `,
   partial: `
-    bg-white/80 dark:bg-card/80
-    border border-orange-500/30 border-dashed
-    shadow-[0_8px_30px_rgba(249,115,22,0.15)]
+    bg-white dark:bg-gray-800/80
+    border-2 border-dashed border-orange-300 dark:border-orange-600/50
+    shadow-sm hover:shadow-md
   `,
   excluded: `
-    bg-white/40 dark:bg-card/40
-    border border-border/20
+    bg-gray-50 dark:bg-gray-900/60
+    border border-gray-200/50 dark:border-gray-800/50
     opacity-60
+    shadow-sm
   `,
   hint: `
-    bg-white/80 dark:bg-card/80
-    border border-primary/30
-    shadow-[0_8px_30px_rgb(var(--color-primary),0.15)]
+    bg-white dark:bg-gray-800/80
+    border border-blue-200 dark:border-blue-700/50
+    shadow-sm hover:shadow-md
   `,
 };
 
@@ -76,12 +77,12 @@ const statusColors = {
 export default function ClueNode({ node, onClick }: ClueNodeProps) {
   const StatusIcon = statusIcons[node.status];
   const CategoryIcon = categoryIconMap[node.category] || Circle;
-  
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.2 }}
+      initial={{ opacity: 0, scale: 0.95, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       className={`absolute cursor-pointer select-none ${node.isKey ? 'z-10' : 'z-0'}`}
       style={{
         left: node.position.x,
@@ -92,36 +93,35 @@ export default function ClueNode({ node, onClick }: ClueNodeProps) {
     >
       <div
         className={`
-          relative min-w-[160px] max-w-[200px]
-          backdrop-blur-2xl rounded-2xl px-4 py-3
-          transition-all duration-300 hover:scale-105 hover:-translate-y-1
+          relative min-w-[180px] max-w-[220px]
+          rounded-xl px-4 py-3
+          transition-all duration-200 ease-out
+          hover:scale-[1.02] hover:-translate-y-0.5
           ${statusStyles[node.status]}
-          ${node.isKey ? 'ring-2 ring-accent/50 ring-offset-2 ring-offset-bg scale-105' : ''}
+          ${node.isKey ? 'ring-2 ring-amber-400 dark:ring-amber-500' : ''}
         `}
       >
-        {/* Key indicator */}
         {node.isKey && (
-          <div className="absolute -top-2 -right-2 w-5 h-5 bg-accent rounded-full flex items-center justify-center">
-            <Target className="w-3 h-3 text-white" />
+          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm">
+            <Target className="w-2.5 h-2.5 text-white" />
           </div>
         )}
-        
-        {/* Header: status icon + category */}
-        <div className="flex items-center gap-2 mb-1">
+
+        <div className="flex items-center gap-2 mb-1.5">
           <StatusIcon className={`w-4 h-4 ${statusColors[node.status]}`} />
-          <CategoryIcon className="w-3.5 h-3.5 text-text-muted" />
-          <span className="text-[10px] text-text-muted uppercase tracking-wide">
-            {node.category}
-          </span>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <CategoryIcon className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wide truncate">
+              {node.category}
+            </span>
+          </div>
         </div>
-        
-        {/* Content */}
-        <p className="text-sm text-text leading-relaxed line-clamp-3">
+
+        <p className="text-[13px] text-gray-900 dark:text-gray-100 leading-relaxed line-clamp-3">
           {node.content}
         </p>
-        
-        {/* Status badge */}
-        <div className="mt-1.5 flex items-center gap-1">
+
+        <div className="mt-1.5 flex items-center gap-2">
           <span className={`text-[10px] font-medium ${statusColors[node.status]}`}>
             {node.status === 'confirmed' ? '已确认' :
              node.status === 'partial' ? '部分确认' :

@@ -4,6 +4,7 @@ import { loadGameContext, fillTemplate } from './context';
 import { CLUE_ANALYSIS_PROMPT } from './prompts';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
+import { getIO } from '../../socket';
 import type { Question, Prisma } from '@prisma/client';
 
 // Types for clue graph
@@ -179,6 +180,18 @@ export async function analyzeClueGraph(channelId: string): Promise<ClueGraphData
       nodeCount: analysisResult.nodes.length,
       edgeCount: analysisResult.edges.length,
     });
+
+    try {
+      const io = getIO();
+      io.to(channelId).emit('clue_graph:updated', {
+        channelId,
+        nodes: analysisResult.nodes,
+        edges: analysisResult.edges,
+      });
+      logger.info('Emitted clue_graph:updated event', { channelId });
+    } catch (socketError) {
+      logger.warn('Failed to emit clue_graph:updated event', { channelId, error: String(socketError) });
+    }
 
     return analysisResult;
   } catch (error) {

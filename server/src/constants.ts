@@ -23,4 +23,5 @@ export const SocketEvents = {
   HINT_SHARED: 'hint:shared',
   PROGRESS_UPDATED: 'progress:updated',
   AI_REVIEW_READY: 'ai:review_ready',
+  CLUE_GRAPH_UPDATED: 'clue_graph:updated',
 } as const;

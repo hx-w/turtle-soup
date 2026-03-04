@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { api } from '../lib/api';
+import { connectSocket } from '../lib/socket';
 import type { ClueGraphData, ClueNode, ClueEdge, AiHint } from '../types';
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force';
 
@@ -230,17 +231,24 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
 
   // Fetch clue graph
   const fetchClueGraph = useCallback(async () => {
-    if (!channelId || !enabled) return;
+    if (!channelId || !enabled) {
+      console.log('fetchClueGraph skipped:', { channelId, enabled });
+      return;
+    }
 
+    console.log('fetchClueGraph called for channel:', channelId);
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
       const data = await api.get<ClueGraphData>(`/channels/${channelId}/clues`);
+      console.log('fetchClueGraph response:', data);
       const savedPositions = loadSavedPositions(channelId);
 
       // Separate hint nodes from regular nodes
       const regularNodes = data.nodes.filter((n) => n.status !== 'hint');
       const hintNodesData = data.nodes.filter((n) => n.status === 'hint');
+
+      console.log('Parsed nodes:', { regularNodes: regularNodes.length, hintNodes: hintNodesData.length, edges: data.edges.length });
 
       // Layout regular nodes
       const positionedNodes = layoutNodes(regularNodes, data.edges, savedPositions);
@@ -260,6 +268,8 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
         savedPositions
       );
 
+      console.log('Layout complete:', { positionedNodes: positionedNodes.length, positionedHints: positionedHints.length });
+
       setState({
         nodes: positionedNodes,
         edges: data.edges,
@@ -269,6 +279,7 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
       });
     } catch (err) {
       const apiError = err as Error;
+      console.error('fetchClueGraph error:', apiError);
       setState((prev) => ({
         ...prev,
         loading: false,
@@ -338,11 +349,28 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
     });
   }, []);
 
-  // Initial fetch
   useEffect(() => {
     if (enabled && channelId) {
       fetchClueGraph();
     }
+  }, [enabled, channelId, fetchClueGraph]);
+
+  useEffect(() => {
+    if (!enabled || !channelId) return;
+
+    const s = connectSocket();
+
+    const handleClueGraphUpdate = (data: { channelId: string }) => {
+      if (data.channelId === channelId) {
+        fetchClueGraph();
+      }
+    };
+
+    s.on('clue_graph:updated', handleClueGraphUpdate);
+
+    return () => {
+      s.off('clue_graph:updated', handleClueGraphUpdate);
+    };
   }, [enabled, channelId, fetchClueGraph]);
 
   // Calculate canvas size based on all nodes
