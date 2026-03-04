@@ -50,6 +50,15 @@ export default function ClueBoard({
   const [isFullscreen, setIsFullscreen] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Separate state for fullscreen mode
+  const [fullscreenScale, setFullscreenScale] = useState(1);
+  const [fullscreenPosition, setFullscreenPosition] = useState({ x: 0, y: 0 });
+  const [fullscreenIsDragging, setFullscreenIsDragging] = useState(false);
+  const [fullscreenDragStart, setFullscreenDragStart] = useState({ x: 0, y: 0 });
+  const [fullscreenInitialDistance, setFullscreenInitialDistance] = useState<number | null>(null);
+  const [fullscreenInitialScale, setFullscreenInitialScale] = useState<number>(1);
   const exhausted = myRemaining <= 0;
   const disabled = hintLoading || exhausted || channelEnded;
 
@@ -208,6 +217,96 @@ export default function ClueBoard({
     }
   };
 
+  // ============ Fullscreen mode handlers ============
+  
+  // Fit to screen for fullscreen
+  const fitToScreenFullscreen = useCallback(() => {
+    if (!fullscreenContainerRef.current) return;
+    
+    const bounds = calculateBounds();
+    const containerWidth = fullscreenContainerRef.current.clientWidth;
+    const containerHeight = fullscreenContainerRef.current.clientHeight - 100; // Account for header
+    
+    const contentWidth = bounds.maxX - bounds.minX;
+    const contentHeight = bounds.maxY - bounds.minY;
+    
+    const newScale = Math.min(
+      containerWidth / contentWidth,
+      containerHeight / contentHeight,
+      1.5, // Allow slight zoom in for fullscreen
+    );
+    
+    const newPosX = (containerWidth - contentWidth * newScale) / 2 - bounds.minX * newScale;
+    const newPosY = (containerHeight - contentHeight * newScale) / 2 - bounds.minY * newScale;
+    
+    setFullscreenScale(newScale);
+    setFullscreenPosition({ x: newPosX, y: newPosY });
+  }, [calculateBounds]);
+
+  const handleFullscreenZoomIn = () => setFullscreenScale(s => Math.min(s * 1.2, 2));
+  const handleFullscreenZoomOut = () => setFullscreenScale(s => Math.max(s / 1.2, 0.3));
+
+  const handleFullscreenMouseDown = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('clue-canvas')) {
+      setFullscreenIsDragging(true);
+      setFullscreenDragStart({ x: e.clientX - fullscreenPosition.x, y: e.clientY - fullscreenPosition.y });
+    }
+  };
+
+  const handleFullscreenMouseMove = (e: React.MouseEvent) => {
+    if (!fullscreenIsDragging) return;
+    setFullscreenPosition({
+      x: e.clientX - fullscreenDragStart.x,
+      y: e.clientY - fullscreenDragStart.y,
+    });
+  };
+
+  const handleFullscreenMouseUp = () => {
+    setFullscreenIsDragging(false);
+  };
+
+  const handleFullscreenTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setFullscreenIsDragging(true);
+      setFullscreenDragStart({ x: e.touches[0].clientX - fullscreenPosition.x, y: e.touches[0].clientX - fullscreenPosition.y });
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      setFullscreenInitialDistance(dist);
+      setFullscreenInitialScale(fullscreenScale);
+      setFullscreenIsDragging(false);
+    }
+  };
+
+  const handleFullscreenTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && fullscreenIsDragging) {
+      setFullscreenPosition({
+        x: e.touches[0].clientX - fullscreenDragStart.x,
+        y: e.touches[0].clientY - fullscreenDragStart.y,
+      });
+    } else if (e.touches.length === 2 && fullscreenInitialDistance !== null) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const newScale = Math.max(0.3, Math.min(2, fullscreenInitialScale * (dist / fullscreenInitialDistance)));
+      setFullscreenScale(newScale);
+    }
+  };
+
+  const handleFullscreenTouchEnd = () => {
+    setFullscreenIsDragging(false);
+    setFullscreenInitialDistance(null);
+  };
+
+  const handleFullscreenWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setFullscreenScale(s => Math.min(Math.max(s * delta, 0.3), 2));
+    }
+  };
+
   // Fit to screen on first load (only in non-fullscreen mode)
   useEffect(() => {
     const hasAnyContent = nodes.length > 0 || hintNodes.length > 0 || myHints.length > 0 || otherPublicHints.length > 0;
@@ -218,14 +317,17 @@ export default function ClueBoard({
 
   // Handle fullscreen change - fit to screen when entering fullscreen
   useEffect(() => {
-    if (isFullscreen && containerRef.current) {
+    if (isFullscreen && fullscreenContainerRef.current) {
+      // Reset fullscreen state first
+      setFullscreenScale(1);
+      setFullscreenPosition({ x: 0, y: 0 });
       // Delay to allow the fullscreen container to render
       const timer = setTimeout(() => {
-        fitToScreen();
-      }, 100);
+        fitToScreenFullscreen();
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [isFullscreen, fitToScreen]);
+  }, [isFullscreen, fitToScreenFullscreen]);
 
   // Close fullscreen on Escape key
   useEffect(() => {
@@ -663,7 +765,7 @@ export default function ClueBoard({
               <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0 border-b border-border/30">
                 <h2 className="text-lg font-heading font-bold text-text">线索面板</h2>
                 <div className="flex items-center gap-2">
-                  <button onClick={fitToScreen} className="p-2 rounded-xl hover:bg-surface text-text-muted hover:text-text transition-colors cursor-pointer" title="适应屏幕">
+                  <button onClick={fitToScreenFullscreen} className="p-2 rounded-xl hover:bg-surface text-text-muted hover:text-text transition-colors cursor-pointer" title="适应屏幕">
                     <Maximize2 className="w-5 h-5" />
                   </button>
                   <button onClick={() => setIsFullscreen(false)} className="p-2 rounded-xl hover:bg-surface text-text-muted hover:text-text transition-colors cursor-pointer" title="关闭">
@@ -675,21 +777,21 @@ export default function ClueBoard({
               {/* Canvas Content */}
               <div className="flex-1 relative overflow-hidden">
                 <div
-                  ref={containerRef}
+                  ref={fullscreenContainerRef}
                   className="absolute inset-0 cursor-grab active:cursor-grabbing clue-canvas pointer-events-auto"
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                  onWheel={handleWheel}
+                  onMouseDown={handleFullscreenMouseDown}
+                  onMouseMove={handleFullscreenMouseMove}
+                  onMouseUp={handleFullscreenMouseUp}
+                  onMouseLeave={handleFullscreenMouseUp}
+                  onTouchStart={handleFullscreenTouchStart}
+                  onTouchMove={handleFullscreenTouchMove}
+                  onTouchEnd={handleFullscreenTouchEnd}
+                  onWheel={handleFullscreenWheel}
                 >
                   <motion.div
                     className="relative clue-canvas"
                     style={{
-                      transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                      transform: `translate(${fullscreenPosition.x}px, ${fullscreenPosition.y}px) scale(${fullscreenScale})`,
                       transformOrigin: '0 0',
                       width: 'fit-content',
                       height: 'fit-content',
@@ -863,13 +965,13 @@ export default function ClueBoard({
                 {/* Top Right Controls */}
                 <div className="absolute top-4 right-4 z-10 flex flex-col gap-3 items-end pointer-events-none">
                   <div className="flex items-center gap-1 bg-surface/80 backdrop-blur-xl border border-border/40 p-1 rounded-xl shadow-lg pointer-events-auto">
-                    <button onClick={handleZoomOut} className="p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors">
+                    <button onClick={handleFullscreenZoomOut} className="p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors">
                       <ZoomOut className="w-4 h-4" />
                     </button>
                     <span className="text-xs text-text-muted w-12 text-center font-medium">
-                      {Math.round(scale * 100)}%
+                      {Math.round(fullscreenScale * 100)}%
                     </span>
-                    <button onClick={handleZoomIn} className="p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors">
+                    <button onClick={handleFullscreenZoomIn} className="p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors">
                       <ZoomIn className="w-4 h-4" />
                     </button>
                   </div>
