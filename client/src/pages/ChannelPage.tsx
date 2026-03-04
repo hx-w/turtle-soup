@@ -23,6 +23,7 @@ import QuestionBubble from '../components/QuestionBubble';
 import TruthReveal from '../components/TruthReveal';
 import OnlineUsers from '../components/OnlineUsers';
 import StatsModal from '../components/StatsModal';
+import SharePreviewModal from '../components/SharePreviewModal';
 
 export default function ChannelPage() {
   const { id: channelId } = useParams<{ id: string }>();
@@ -58,6 +59,7 @@ export default function ChannelPage() {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [showEditSoup, setShowEditSoup] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
@@ -133,12 +135,11 @@ export default function ChannelPage() {
   }, [questions.length, checkScrollState]);
 
   const scrollToTop = useCallback(() => {
-    scrollElementRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    const el = scrollElementRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   }, []);
 
   const handleTabChange = useCallback(
@@ -263,7 +264,10 @@ export default function ChannelPage() {
   const showScrollFAB = canScrollUp || canScrollDown;
 
   return (
-    <div className="flex-1 min-h-0 bg-bg flex flex-col overflow-hidden">
+    <div 
+      className="flex-1 min-h-0 bg-bg flex flex-col overflow-y-auto"
+      ref={bindScrollElement}
+    >
       <ChannelHeader
         channel={channel}
         isActive={isActive}
@@ -295,6 +299,10 @@ export default function ChannelPage() {
           loadStats();
           setShowStatsModal(true);
         }}
+        onShare={() => {
+          loadStats();
+          setShowShareModal(true);
+        }}
         onDelete={() => setConfirmDelete(true)}
       />
 
@@ -307,7 +315,7 @@ export default function ChannelPage() {
       />
 
       {activeTab === 'hints' ? (
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex flex-col flex-1 pb-6">
           <HintsPanel
             ref={hintsRef}
             hints={hints}
@@ -320,8 +328,8 @@ export default function ChannelPage() {
           />
         </div>
       ) : activeTab === 'qa' ? (
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3 pb-6 space-y-1">
+        <div className="flex flex-col flex-1">
+          <div ref={timelineRef} className="flex flex-col pb-6 space-y-1">
             {questions.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-text-muted">
                 <HelpCircle className="w-12 h-12 mb-3 opacity-30" />
@@ -344,24 +352,28 @@ export default function ChannelPage() {
               ))}
           </div>
 
-          {isActive && !isHostOrCreator ? (
-            <PlayerInputPanel
-              hasPending={hasPending}
-              questionText={questionText}
-              onChangeText={setQuestionText}
-              onSubmit={onSubmitQuestion}
-              submitting={submitting}
-            />
-          ) : isActive && isHostOrCreator ? (
-            <div className="flex-shrink-0 bg-surface border-t border-border px-4 py-3 pointer-events-none">
-              <div className="flex items-center justify-center gap-2 py-2">
-                <span className="text-sm text-text-muted">主持人仅可回答问题</span>
-              </div>
+          <div className="sticky bottom-0 left-0 right-0 z-10 bg-bg/95 backdrop-blur-md pb-safe border-t border-border/30">
+            <div className="w-full max-w-[768px] mx-auto">
+              {isActive && !isHostOrCreator ? (
+                <PlayerInputPanel
+                  hasPending={hasPending}
+                  questionText={questionText}
+                  onChangeText={setQuestionText}
+                  onSubmit={onSubmitQuestion}
+                  submitting={submitting}
+                />
+              ) : isActive && isHostOrCreator ? (
+                <div className="flex-shrink-0 bg-surface px-4 py-3 pointer-events-none">
+                  <div className="flex items-center justify-center gap-2 py-2">
+                    <span className="text-sm text-text-muted">主持人仅可回答问题</span>
+                  </div>
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex flex-col flex-1 pb-6">
           <DiscussionPanel
             ref={discussionRef}
             messages={discussion.messages}
@@ -372,12 +384,16 @@ export default function ChannelPage() {
             endedAt={channel.endedAt}
           />
 
-          <ChatInput
-            isHost={isHostOrCreator}
-            isActive={isActive}
-            channelEnded={channelEnded}
-            onSend={discussion.sendMessage}
-          />
+          <div className="sticky bottom-0 left-0 right-0 z-10 bg-bg/95 backdrop-blur-md pb-safe">
+            <div className="w-full max-w-[768px] mx-auto">
+              <ChatInput
+                isHost={isHostOrCreator}
+                isActive={isActive}
+                channelEnded={channelEnded}
+                onSend={discussion.sendMessage}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -505,6 +521,16 @@ export default function ChannelPage() {
             variant="danger"
             onConfirm={onDeleteChannel}
             onCancel={() => setConfirmDelete(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showShareModal && channel && (
+          <SharePreviewModal
+            channel={channel}
+            stats={channelStats}
+            onClose={() => setShowShareModal(false)}
           />
         )}
       </AnimatePresence>

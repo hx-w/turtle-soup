@@ -130,7 +130,7 @@ const DiscussionPanel = forwardRef<DiscussionPanelHandle, DiscussionPanelProps>(
     const endTime = endedAt ? new Date(endedAt).getTime() : null;
 
     return (
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <div ref={scrollRef} className="flex flex-col pb-4">
         {messages.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center text-text-muted py-16">
             <MessageSquare className="w-12 h-12 mb-3 opacity-30" />
@@ -204,7 +204,7 @@ const DiscussionPanel = forwardRef<DiscussionPanelHandle, DiscussionPanelProps>(
             })}
           </>
         )}
-        <div ref={bottomRef} className="h-6" />
+        <div ref={bottomRef} className="h-4" />
       </div>
     );
   },

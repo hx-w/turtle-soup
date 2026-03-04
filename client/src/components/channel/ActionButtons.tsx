@@ -1,4 +1,4 @@
-import { Eye, StopCircle, BarChart3, Trash2 } from 'lucide-react';
+import { Eye, StopCircle, BarChart3, Trash2, Share2 } from 'lucide-react';
 
 interface ActionButtonsProps {
   isActive: boolean;
@@ -9,6 +9,7 @@ interface ActionButtonsProps {
   onEnd: () => void;
   onViewTruth: () => void;
   onViewStats: () => void;
+  onShare?: () => void;
   onDelete?: () => void;
 }
 
@@ -21,6 +22,7 @@ export default function ActionButtons({
   onEnd,
   onViewTruth,
   onViewStats,
+  onShare,
   onDelete,
 }: ActionButtonsProps) {
   const isHostOrCreator = myRole === 'host' || myRole === 'creator';
@@ -76,6 +78,19 @@ export default function ActionButtons({
         >
           <BarChart3 className="w-3.5 h-3.5" />
           统计
+        </button>
+      )}
+
+      {channelEnded && onShare && (
+        <button
+          onClick={onShare}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
+                     rounded-lg border border-border text-text-muted
+                     hover:bg-card hover:text-text transition-colors duration-150 cursor-pointer"
+          aria-label="分享卡片"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          分享
         </button>
       )}
 
