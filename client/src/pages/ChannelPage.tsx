@@ -279,18 +279,16 @@ export default function ChannelPage() {
       />
 
       {activeTab === 'hints' ? (
-        <div className="flex flex-col pb-20">
-          <HintsPanel
-            ref={hintsRef}
-            hints={hints}
-            myRemaining={hintRemaining}
-            hintLoading={hintLoading}
-            currentUserId={user?.id ?? ''}
-            channelEnded={channelEnded}
-            onRequestHint={handleRequestHint}
-            onTogglePublic={handleToggleHintPublic}
-          />
-        </div>
+        <HintsPanel
+          ref={hintsRef}
+          hints={hints}
+          myRemaining={hintRemaining}
+          hintLoading={hintLoading}
+          currentUserId={user?.id ?? ''}
+          channelEnded={channelEnded}
+          onRequestHint={handleRequestHint}
+          onTogglePublic={handleToggleHintPublic}
+        />
       ) : activeTab === 'qa' ? (
         <div className="flex flex-col pb-20">
           <div ref={timelineRef} className="flex flex-col pb-2 space-y-1">
@@ -374,10 +372,9 @@ export default function ChannelPage() {
             <button
               onClick={scrollToTop}
               className={`w-10 h-10 flex items-center justify-center
-                         bg-card border border-border rounded-xl
-                         text-text-muted hover:text-primary hover:border-primary/30
+                         bg-primary/90 hover:bg-primary text-white rounded-xl
                          active:scale-95 transition-all duration-150 cursor-pointer
-                         shadow-sm ${canScrollUp ? '' : 'invisible'}`}
+                         shadow-lg shadow-primary/30 ${canScrollUp ? '' : 'invisible'}`}
               aria-label="滚动到顶部"
             >
               <ArrowUp className="w-5 h-5" />
@@ -385,10 +382,9 @@ export default function ChannelPage() {
             <button
               onClick={scrollToBottom}
               className={`w-10 h-10 flex items-center justify-center
-                         bg-card border border-border rounded-xl
-                         text-text-muted hover:text-primary hover:border-primary/30
+                         bg-primary/90 hover:bg-primary text-white rounded-xl
                          active:scale-95 transition-all duration-150 cursor-pointer
-                         shadow-sm ${canScrollDown ? '' : 'invisible'}`}
+                         shadow-lg shadow-primary/30 ${canScrollDown ? '' : 'invisible'}`}
               aria-label="滚动到底部"
             >
               <ArrowDown className="w-5 h-5" />

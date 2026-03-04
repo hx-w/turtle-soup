@@ -49,10 +49,15 @@ export default function Layout() {
             {/* Logo */}
             <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-2 cursor-pointer"
+              className="flex items-center gap-2.5 cursor-pointer group"
               aria-label="Home"
             >
-              <span className="font-heading font-bold text-lg text-primary">
+              <img 
+                src="/icons/icon-192x192.png" 
+                alt="" 
+                className="w-8 h-8 rounded-lg shadow-sm group-hover:shadow-md transition-shadow duration-200" 
+              />
+              <span className="font-heading font-bold text-lg text-text group-hover:text-primary transition-colors duration-200">
                 海龟汤
               </span>
             </button>

@@ -79,18 +79,16 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
         </div>
       )}
 
-      {/* Progress bar (only if maxQuestions > 0) */}
       {maxQ > 0 && (
         <div className="mt-2.5">
           <div className="w-full h-1.5 bg-border/60 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500 ease-out"
+              className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
         </div>
       )}
-
       {/* Bottom row */}
       <div className="flex items-center justify-between mt-3 gap-2">
         <div className="flex items-center gap-3 text-xs text-text-muted">

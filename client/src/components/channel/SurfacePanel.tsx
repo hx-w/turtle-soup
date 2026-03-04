@@ -62,7 +62,7 @@ export default function SurfacePanel({ surface, isCreator, isActive, onEdit }: S
             <div className="flex mt-3">
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-1 text-[13px] font-medium text-text/80 hover:text-primary transition-colors duration-200 cursor-pointer"
+                className="flex items-center gap-1 text-[13px] font-semibold text-primary hover:text-primary-light transition-colors duration-200 cursor-pointer"
               >
                 {isExpanded ? (
                   <>收起 <ChevronUp className="w-3.5 h-3.5" /></>

@@ -34,7 +34,7 @@ export default function ActionButtons({
           onClick={onReveal}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
                      rounded-lg border border-accent/30 text-accent
-                     hover:bg-accent/10 transition-colors duration-150 cursor-pointer"
+                     hover:bg-accent/10 transition-colors duration-150 cursor-pointer ml-auto"
           aria-label="查看汤底"
         >
           <Eye className="w-3.5 h-3.5" />

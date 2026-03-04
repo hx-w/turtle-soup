@@ -34,11 +34,11 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-bg to-surface flex items-center justify-center px-4">
+    <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       {/* Theme toggle */}
       <button
         onClick={toggleTheme}
-        className="fixed top-4 right-4 z-50 p-2.5 rounded-xl bg-card/80 backdrop-blur-xl border border-border
+        className="fixed top-4 right-4 z-50 p-2.5 rounded-xl bg-card border border-border
                    text-text-muted hover:text-text shadow-sm transition-all duration-200 ease-out cursor-pointer"
         aria-label={theme === 'light' ? '切换到暗色模式' : '切换到亮色模式'}
       >
@@ -55,7 +55,7 @@ export default function RegisterPage() {
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
             <img src="/icons/icon-192x192.png" alt="海龟汤" className="w-16 h-16" />
-            <h1 className="font-heading font-bold text-3xl mt-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h1 className="font-heading font-bold text-3xl mt-4 text-primary">
               海龟汤
             </h1>
             <p className="text-text-muted text-sm mt-1">创建你的账号</p>

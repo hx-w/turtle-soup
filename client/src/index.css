@@ -4,39 +4,38 @@
 
 @layer base {
   /* ------------------------------------------------------------------ */
-  /*  Light theme (default)                                              */
-  /* ------------------------------------------------------------------ */
+  /*  Light theme - Soft blue #7AAACE, gentle & professional              */
   :root {
-    --color-bg: 248 249 252;
-    --color-surface: 238 240 246;
+    --color-bg: 250 251 252;
+    --color-surface: 241 243 245;
     --color-card: 255 255 255;
-    --color-primary: 108 92 231;
-    --color-primary-light: 133 119 237;
-    --color-accent: 230 168 23;
-    --color-yes: 46 172 74;
-    --color-no: 231 76 60;
-    --color-irrelevant: 107 114 128;
-    --color-text: 26 26 46;
-    --color-text-muted: 100 104 138;
-    --color-border: 223 226 234;
+    --color-primary: 122 170 206;
+    --color-primary-light: 159 197 232;
+    --color-accent: 91 155 213;
+    --color-yes: 82 196 140;
+    --color-no: 235 101 101;
+    --color-irrelevant: 108 122 137;
+    --color-text: 44 62 80;
+    --color-text-muted: 108 122 137;
+    --color-border: 221 228 233;
   }
 
   /* ------------------------------------------------------------------ */
-  /*  Dark theme                                                         */
+  /*  Dark theme - Slate-based, easy on eyes                             */
   /* ------------------------------------------------------------------ */
   .dark {
-    --color-bg: 10 10 26;
-    --color-surface: 20 20 50;
-    --color-card: 28 28 60;
-    --color-primary: 124 111 247;
-    --color-primary-light: 157 147 250;
-    --color-accent: 255 212 59;
-    --color-yes: 81 207 102;
-    --color-no: 255 107 107;
-    --color-irrelevant: 134 142 150;
-    --color-text: 233 236 239;
-    --color-text-muted: 173 181 189;
-    --color-border: 42 42 74;
+    --color-bg: 26 29 33;
+    --color-surface: 37 42 48;
+    --color-card: 44 50 56;
+    --color-primary: 122 170 206;
+    --color-primary-light: 163 196 219;
+    --color-accent: 91 155 213;
+    --color-yes: 82 196 140;
+    --color-no: 235 101 101;
+    --color-irrelevant: 155 165 173;
+    --color-text: 232 236 240;
+    --color-text-muted: 155 165 173;
+    --color-border: 61 68 77;
   }
 
   html {
@@ -149,5 +148,18 @@
 
   .skeleton {
     @apply animate-pulse bg-border/40 rounded;
+  }
+
+  /* Glass morphism components - seamless integration */
+  .glass-nav {
+    @apply bg-bg/80 backdrop-blur-md;
+  }
+
+  .glass-card {
+    @apply bg-card/90 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5;
+  }
+
+  :is(.dark .glass-card) {
+    @apply bg-card/95 shadow-black/20;
   }
 }
