@@ -64,10 +64,11 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
         <div
           style={{
             flex: 1,
-            padding: '24px 24px 20px',
+            padding: '24px 24px 60px',
             display: 'flex',
             flexDirection: 'column',
             gap: 0,
+            overflow: 'hidden',
           }}
         >
           {/* Header: brand + rating */}
@@ -104,7 +105,7 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
           <div style={{ height: 1, backgroundColor: bgParams.divider, marginBottom: 16 }} />
 
           {/* Surface */}
-          <div style={{ marginBottom: 16, flexShrink: 0 }}>
+          <div style={{ marginBottom: 16, flexShrink: 0, minHeight: 0 }}>
             <span
               style={{
                 fontSize: 11,
@@ -125,7 +126,7 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 display: '-webkit-box',
-                WebkitLineClamp: 6,
+                WebkitLineClamp: 5,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -141,7 +142,8 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
               backgroundColor: bgParams.cardBg,
               borderRadius: 16,
               padding: '16px',
-              marginBottom: 16,
+              marginBottom: 12,
+              flexShrink: 0,
             }}
           >
             <div
@@ -239,7 +241,7 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
 
           {/* Key question */}
           {lastYes && (
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 12, flexShrink: 0 }}>
               <div style={{ fontSize: 12, color: '#d97706', marginBottom: 6, fontWeight: 600 }}>
                 🎯 关键一问
               </div>
@@ -314,10 +316,9 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
           <div
             style={{
               position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 48, // generous tap area/footer height
+              bottom: 16,
+              left: 24,
+              right: 24,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

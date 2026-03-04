@@ -52,9 +52,9 @@ export default function SurfacePanel({ surface, isCreator, isActive, onEdit }: S
             {surface}
           </p>
 
-          {/* Fade mask when collapsed but overflowing */}
+          {/* Fade mask when collapsed but overflowing - blend into card background */}
           {!isExpanded && isOverflowing && (
-            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-surface to-transparent pointer-events-none" />
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-card via-card/80 to-transparent pointer-events-none" />
           )}
 
           {/* Expand/Collapse Toggle Button */}
@@ -62,7 +62,7 @@ export default function SurfacePanel({ surface, isCreator, isActive, onEdit }: S
             <div className="flex mt-3">
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-1 text-[13px] font-medium text-text-muted hover:text-text transition-colors duration-200 cursor-pointer"
+                className="flex items-center gap-1 text-[13px] font-medium text-text/80 hover:text-primary transition-colors duration-200 cursor-pointer"
               >
                 {isExpanded ? (
                   <>收起 <ChevronUp className="w-3.5 h-3.5" /></>

@@ -67,42 +67,65 @@ export default function SharePreviewModal({
   const handleCopy = async () => {
     if (!imageBlob) return;
     try {
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': imageBlob }),
-      ]);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('复制失败，请使用保存按钮下载图片');
+      // Check if ClipboardItem API is available
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': imageBlob }),
+        ]);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback: not supported
+        toast.error('当前浏览器不支持复制图片，请使用分享或保存按钮');
+      }
+    } catch (err) {
+      console.error('Copy failed:', err);
+      toast.error('复制失败，请使用分享或保存按钮');
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!imageBlob || !channel) return;
     try {
-      const blobUrl = window.URL.createObjectURL(imageBlob);
+      // On mobile, try native share first for saving to album
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile && typeof navigator.share === 'function' && navigator.canShare?.()) {
+        const file = new File([imageBlob], 'turtle-soup.png', { type: 'image/png' });
+        try {
+          await navigator.share({ files: [file] });
+          return;
+        } catch {
+          // User cancelled or share failed, fall through to download
+        }
+      }
+      
+      // Desktop or mobile without share - regular download
+      const blobUrl = URL.createObjectURL(imageBlob);
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = `turtle-soup-${channel.id.slice(0, 8)}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
+      URL.revokeObjectURL(blobUrl);
+      toast.success('图片已保存');
     } catch (err) {
       console.error('Download failed:', err);
-      toast.error('下载遇到错误');
+      toast.error('保存失败，请尝试分享按钮');
     }
   };
 
   const handleNativeShare = async () => {
     if (!imageBlob) return;
     try {
-      const file = new File([imageBlob], 'turtle-soup.png', {
-        type: 'image/png',
-      });
-      await navigator.share({ files: [file] });
-    } catch {
+      const file = new File([imageBlob], 'turtle-soup.png', { type: 'image/png' });
+      const shareData = { files: [file] };
+      if (navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+      }
+    } catch (err) {
       // User cancelled or not supported
+      console.log('Share cancelled or failed:', err);
     }
   };
 

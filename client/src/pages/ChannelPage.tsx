@@ -370,32 +370,29 @@ export default function ChannelPage() {
             className="fixed right-3 z-30 flex flex-col gap-1.5
                        bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
           >
-            {canScrollUp && (
-              <button
-                onClick={scrollToTop}
-                className="w-10 h-10 flex items-center justify-center
-                           bg-card border border-border rounded-xl
-                           text-text-muted hover:text-primary hover:border-primary/30
-                           active:scale-95 transition-all duration-150 cursor-pointer
-                           shadow-sm"
-                aria-label="滚动到顶部"
-              >
-                <ArrowUp className="w-5 h-5" />
-              </button>
-            )}
-            {canScrollDown && (
-              <button
-                onClick={scrollToBottom}
-                className="w-10 h-10 flex items-center justify-center
-                           bg-card border border-border rounded-xl
-                           text-text-muted hover:text-primary hover:border-primary/30
-                           active:scale-95 transition-all duration-150 cursor-pointer
-                           shadow-sm"
-                aria-label="滚动到底部"
-              >
-                <ArrowDown className="w-5 h-5" />
-              </button>
-            )}
+            {/* Fixed position buttons - always render both, just toggle visibility */}
+            <button
+              onClick={scrollToTop}
+              className={`w-10 h-10 flex items-center justify-center
+                         bg-card border border-border rounded-xl
+                         text-text-muted hover:text-primary hover:border-primary/30
+                         active:scale-95 transition-all duration-150 cursor-pointer
+                         shadow-sm ${canScrollUp ? '' : 'invisible'}`}
+              aria-label="滚动到顶部"
+            >
+              <ArrowUp className="w-5 h-5" />
+            </button>
+            <button
+              onClick={scrollToBottom}
+              className={`w-10 h-10 flex items-center justify-center
+                         bg-card border border-border rounded-xl
+                         text-text-muted hover:text-primary hover:border-primary/30
+                         active:scale-95 transition-all duration-150 cursor-pointer
+                         shadow-sm ${canScrollDown ? '' : 'invisible'}`}
+              aria-label="滚动到底部"
+            >
+              <ArrowDown className="w-5 h-5" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

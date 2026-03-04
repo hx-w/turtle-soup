@@ -52,8 +52,7 @@ export default function Layout() {
               className="flex items-center gap-2 cursor-pointer"
               aria-label="Home"
             >
-              <img src="/icons/icon-192x192.png" alt="海龟汤" className="w-8 h-8" />
-              <span className="font-heading font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <span className="font-heading font-bold text-lg text-primary">
                 海龟汤
               </span>
             </button>

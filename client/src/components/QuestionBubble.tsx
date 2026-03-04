@@ -256,7 +256,7 @@ export default function QuestionBubble({
 
             {/* AI-specific controls for host */}
             {isHost && question.isAiAnswered && (
-              <div className="mt-1.5 flex items-center gap-3">
+              <div className="mt-1.5 flex items-start gap-3">
                 {onAiCorrect && (
                   <AiCorrectDropdown
                     questionId={question.id}

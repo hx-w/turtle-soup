@@ -57,7 +57,7 @@ const HintsPanel = forwardRef<HintsPanelHandle, HintsPanelProps>(
         </div>
 
         {/* 底部大按钮 */}
-        <div className="flex-shrink-0 p-4 border-t border-border">
+        <div className="flex-shrink-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-border">
           <button
             type="button"
             onClick={onRequestHint}
