@@ -63,7 +63,7 @@ export default function ChannelPage() {
 
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
-  const scrollElementRef = useRef<HTMLDivElement | null>(null);
+
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const discussionRef = useRef<DiscussionPanelHandle>(null);
@@ -83,56 +83,23 @@ export default function ChannelPage() {
   }, [questions]);
 
   const checkScrollState = useCallback(() => {
-    const el = scrollElementRef.current;
-    if (!el) {
-      setCanScrollUp(false);
-      setCanScrollDown(false);
-      return;
-    }
-    const { scrollTop, scrollHeight, clientHeight } = el;
+    const scrollTop = window.scrollY;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const clientHeight = window.innerHeight;
     const threshold = 80;
     setCanScrollUp(scrollTop > threshold);
     setCanScrollDown(scrollHeight - scrollTop - clientHeight > threshold);
   }, []);
 
-  const bindScrollElement = useCallback((el: HTMLDivElement | null) => {
-    if (scrollElementRef.current) {
-      scrollElementRef.current.removeEventListener('scroll', checkScrollState);
-    }
-    scrollElementRef.current = el;
-
-    if (el) {
-      el.addEventListener('scroll', checkScrollState, { passive: true });
-      requestAnimationFrame(checkScrollState);
-    } else {
-      setCanScrollUp(false);
-      setCanScrollDown(false);
-    }
+  useEffect(() => {
+    window.addEventListener('scroll', checkScrollState, { passive: true });
+    requestAnimationFrame(checkScrollState);
+    return () => window.removeEventListener('scroll', checkScrollState);
   }, [checkScrollState]);
 
   useEffect(() => {
-    let el: HTMLDivElement | null = null;
-
-    if (activeTab === 'qa') {
-      el = timelineRef.current;
-    } else if (activeTab === 'discussion') {
-      el = discussionRef.current?.scrollRef ?? null;
-    } else if (activeTab === 'hints') {
-      el = hintsRef.current?.scrollRef ?? null;
-    }
-
-    bindScrollElement(el);
-
-    return () => {
-      if (scrollElementRef.current) {
-        scrollElementRef.current.removeEventListener('scroll', checkScrollState);
-      }
-    };
-  }, [activeTab, bindScrollElement, checkScrollState, discussion.messages.length, hints.length]);
-
-  useEffect(() => {
     checkScrollState();
-  }, [questions.length, checkScrollState]);
+  }, [questions.length, checkScrollState, activeTab]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -264,10 +231,7 @@ export default function ChannelPage() {
   const showScrollFAB = canScrollUp || canScrollDown;
 
   return (
-    <div 
-      className="flex-1 min-h-0 bg-bg flex flex-col overflow-y-auto"
-      ref={bindScrollElement}
-    >
+    <div className="flex-1 bg-bg flex flex-col">
       <ChannelHeader
         channel={channel}
         isActive={isActive}
@@ -315,7 +279,7 @@ export default function ChannelPage() {
       />
 
       {activeTab === 'hints' ? (
-        <div className="flex flex-col flex-1 pb-6">
+        <div className="flex flex-col pb-20">
           <HintsPanel
             ref={hintsRef}
             hints={hints}
@@ -328,8 +292,8 @@ export default function ChannelPage() {
           />
         </div>
       ) : activeTab === 'qa' ? (
-        <div className="flex flex-col flex-1">
-          <div ref={timelineRef} className="flex flex-col pb-6 space-y-1">
+        <div className="flex flex-col pb-20">
+          <div ref={timelineRef} className="flex flex-col pb-2 space-y-1">
             {questions.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-text-muted">
                 <HelpCircle className="w-12 h-12 mb-3 opacity-30" />
@@ -351,29 +315,9 @@ export default function ChannelPage() {
                 />
               ))}
           </div>
-
-          <div className="sticky bottom-0 left-0 right-0 z-10 bg-bg/95 backdrop-blur-md pb-safe border-t border-border/30">
-            <div className="w-full max-w-[768px] mx-auto">
-              {isActive && !isHostOrCreator ? (
-                <PlayerInputPanel
-                  hasPending={hasPending}
-                  questionText={questionText}
-                  onChangeText={setQuestionText}
-                  onSubmit={onSubmitQuestion}
-                  submitting={submitting}
-                />
-              ) : isActive && isHostOrCreator ? (
-                <div className="flex-shrink-0 bg-surface px-4 py-3 pointer-events-none">
-                  <div className="flex items-center justify-center gap-2 py-2">
-                    <span className="text-sm text-text-muted">主持人仅可回答问题</span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
         </div>
       ) : (
-        <div className="flex flex-col flex-1 pb-6">
+        <div className="flex flex-col pb-20">
           <DiscussionPanel
             ref={discussionRef}
             messages={discussion.messages}
@@ -383,19 +327,38 @@ export default function ChannelPage() {
             onLoadMore={discussion.loadMore}
             endedAt={channel.endedAt}
           />
-
-          <div className="sticky bottom-0 left-0 right-0 z-10 bg-bg/95 backdrop-blur-md pb-safe">
-            <div className="w-full max-w-[768px] mx-auto">
-              <ChatInput
-                isHost={isHostOrCreator}
-                isActive={isActive}
-                channelEnded={channelEnded}
-                onSend={discussion.sendMessage}
-              />
-            </div>
-          </div>
         </div>
       )}
+
+      {/* Fixed bottom input bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-bg/95 backdrop-blur-md border-t border-border/30">
+        <div className="w-full max-w-5xl mx-auto">
+          {activeTab === 'qa' ? (
+            isActive && !isHostOrCreator ? (
+              <PlayerInputPanel
+                hasPending={hasPending}
+                questionText={questionText}
+                onChangeText={setQuestionText}
+                onSubmit={onSubmitQuestion}
+                submitting={submitting}
+              />
+            ) : isActive && isHostOrCreator ? (
+              <div className="px-4 py-3 pointer-events-none">
+                <div className="flex items-center justify-center gap-2 py-2">
+                  <span className="text-sm text-text-muted">主持人仅可回答问题</span>
+                </div>
+              </div>
+            ) : null
+          ) : activeTab === 'discussion' ? (
+            <ChatInput
+              isHost={isHostOrCreator}
+              isActive={isActive}
+              channelEnded={channelEnded}
+              onSend={discussion.sendMessage}
+            />
+          ) : null}
+        </div>
+      </div>
 
       <AnimatePresence>
         {showScrollFAB && (

@@ -41,7 +41,7 @@ export default function Layout() {
   };
 
   return (
-    <div className={`${isChannelPage ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'} bg-bg flex flex-col`}>
+    <div className="min-h-[100dvh] bg-bg flex flex-col">
       {/* Top bar - hidden on auth pages */}
       {!isAuthPage && (
         <header className="sticky top-0 z-50 glass-nav">
@@ -139,7 +139,7 @@ export default function Layout() {
       <main
         className={`flex-1 ${
           isChannelPage
-            ? 'min-h-0 flex flex-col overflow-hidden'
+            ? 'flex flex-col'
             : `${!isAuthPage ? 'pb-8 pt-2' : ''}`
         }`}
       >
