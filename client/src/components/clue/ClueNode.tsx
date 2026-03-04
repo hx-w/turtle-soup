@@ -86,6 +86,7 @@ export default function ClueNode({ node, onClick }: ClueNodeProps) {
       style={{
         left: node.position.x,
         top: node.position.y,
+        willChange: 'transform',
       }}
       onClick={onClick}
     >

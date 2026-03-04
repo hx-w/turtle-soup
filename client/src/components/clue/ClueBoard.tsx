@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ZoomIn, ZoomOut, Maximize2, Lightbulb, CheckCircle, XCircle, PieChart, RefreshCw, Eye, Lock } from 'lucide-react';
+import { Search, ZoomIn, ZoomOut, Maximize2, Lightbulb, CheckCircle, XCircle, PieChart, RefreshCw, Eye, Lock, X } from 'lucide-react';
 
 import { useClueGraph, calculateCanvasSize, type PositionedClueNode, LAYOUT } from '../../hooks/useClueGraph';
 import ClueNode from './ClueNode';
@@ -47,6 +47,7 @@ export default function ClueBoard({
   const [selectedNode, setSelectedNode] = useState<PositionedClueNode | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const exhausted = myRemaining <= 0;
@@ -207,15 +208,38 @@ export default function ClueBoard({
     }
   };
 
-  // Fit to screen on first load
+  // Fit to screen on first load (only in non-fullscreen mode)
   useEffect(() => {
-    if ((nodes.length > 0 || hintNodes.length > 0) && scale === 1 && position.x === 0 && position.y === 0) {
+    const hasAnyContent = nodes.length > 0 || hintNodes.length > 0 || myHints.length > 0 || otherPublicHints.length > 0;
+    if (hasAnyContent && scale === 1 && position.x === 0 && position.y === 0 && !isFullscreen) {
       fitToScreen();
     }
-  }, [nodes.length, hintNodes.length, fitToScreen, scale, position]);
+  }, [nodes.length, hintNodes.length, myHints.length, otherPublicHints.length, fitToScreen, scale, position, isFullscreen]);
 
-  // Empty state
-  if (!loading && nodes.length === 0 && hintNodes.length === 0) {
+  // Handle fullscreen change - fit to screen when entering fullscreen
+  useEffect(() => {
+    if (isFullscreen && containerRef.current) {
+      // Delay to allow the fullscreen container to render
+      const timer = setTimeout(() => {
+        fitToScreen();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isFullscreen, fitToScreen]);
+
+  // Close fullscreen on Escape key
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFullscreen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  // Empty state - only show when there's truly no content at all
+  const hasAnyClueContent = nodes.length > 0 || hintNodes.length > 0 || myHints.length > 0 || otherPublicHints.length > 0;
+  if (!loading && !hasAnyClueContent) {
     return (
       <div className="flex-1 flex flex-col">
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 text-text-muted">
@@ -285,6 +309,7 @@ export default function ClueBoard({
   }
 
   return (
+    <>
     <div className="flex-1 w-full h-full relative min-h-0 bg-bg overflow-hidden flex flex-col">
       {/* Canvas Layer */}
       <div
@@ -306,6 +331,7 @@ export default function ClueBoard({
              transformOrigin: '0 0',
              width: 'fit-content',
              height: 'fit-content',
+             willChange: 'transform',
            }}
         >
           {/* Grid Background */}
@@ -379,19 +405,19 @@ export default function ClueBoard({
               width: LAYOUT.CLUE_LIST_WIDTH,
             }}
           >
-            {/* Panel Header - flat text */}
+            {/* Panel Header */}
             <div className="mb-6">
-              <h3 className="text-base font-bold text-text/80 select-none">
+              <h3 className="text-lg font-bold text-text/90 select-none">
                 线索列表
               </h3>
-              <div className="h-px bg-border/20 mt-2" />
+              <div className="h-px bg-border/30 mt-2" />
             </div>
 
             {/* My Hints Section */}
             {myHints.length > 0 && (
               <div className="mb-6">
-                <div className="text-xs font-medium text-text/50 mb-3 select-none flex items-center gap-1.5">
-                  <Lock className="w-3 h-3" />
+                <div className="text-sm font-semibold text-text/70 mb-3 select-none flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
                   我的线索 ({myHints.length})
                 </div>
                 <div className="space-y-2">
@@ -423,8 +449,8 @@ export default function ClueBoard({
             {/* Public Hints Section */}
             {otherPublicHints.length > 0 && (
               <div className="mb-6">
-                <div className="text-xs font-medium text-text/50 mb-3 select-none flex items-center gap-1.5">
-                  <Eye className="w-3 h-3" />
+                <div className="text-sm font-semibold text-text/70 mb-3 select-none flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
                   公开线索 ({otherPublicHints.length})
                 </div>
                 <div className="space-y-2">
@@ -455,8 +481,8 @@ export default function ClueBoard({
             {/* AI Hint Nodes Section */}
             {hintNodes.length > 0 && (
               <div>
-                <div className="text-xs font-medium text-text/50 mb-3 select-none flex items-center gap-1.5">
-                  <Lightbulb className="w-3 h-3" />
+                <div className="text-sm font-semibold text-text/70 mb-3 select-none flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4" />
                   AI 分析线索 ({hintNodes.length})
                 </div>
                 <div className="space-y-2">
@@ -506,7 +532,7 @@ export default function ClueBoard({
           </button>
         </div>
 
-        <button onClick={fitToScreen} className="p-2.5 bg-surface/80 backdrop-blur-xl border border-border/40 hover:bg-surface rounded-xl shadow-lg pointer-events-auto text-text-muted hover:text-text transition-colors" title="适应屏幕">
+        <button onClick={() => setIsFullscreen(true)} className="p-2.5 bg-surface/80 backdrop-blur-xl border border-border/40 hover:bg-surface rounded-xl shadow-lg pointer-events-auto text-text-muted hover:text-text transition-colors" title="全屏">
           <Maximize2 className="w-4 h-4" />
         </button>
 
@@ -607,6 +633,287 @@ export default function ClueBoard({
         )}
       </AnimatePresence>
     </div>
+
+      {/* Fullscreen Modal */}
+
+      {/* Fullscreen Modal */}
+      <AnimatePresence>
+        {isFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60" onClick={() => setIsFullscreen(false)} />
+
+            {/* Modal Panel */}
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="relative w-full h-full sm:h-auto sm:max-h-[90vh] bg-card border border-border
+                         rounded-t-2xl sm:rounded-2xl shadow-2xl
+                         flex flex-col overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0 border-b border-border/30">
+                <h2 className="text-lg font-heading font-bold text-text">线索面板</h2>
+                <div className="flex items-center gap-2">
+                  <button onClick={fitToScreen} className="p-2 rounded-xl hover:bg-surface text-text-muted hover:text-text transition-colors cursor-pointer" title="适应屏幕">
+                    <Maximize2 className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => setIsFullscreen(false)} className="p-2 rounded-xl hover:bg-surface text-text-muted hover:text-text transition-colors cursor-pointer" title="关闭">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Canvas Content */}
+              <div className="flex-1 relative overflow-hidden">
+                <div
+                  ref={containerRef}
+                  className="absolute inset-0 cursor-grab active:cursor-grabbing clue-canvas pointer-events-auto"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onWheel={handleWheel}
+                >
+                  <motion.div
+                    className="relative clue-canvas"
+                    style={{
+                      transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                      transformOrigin: '0 0',
+                      width: 'fit-content',
+                      height: 'fit-content',
+                      willChange: 'transform',
+                    }}
+                  >
+                    {/* Grid Background */}
+                    <svg
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ width: canvasSize.width, height: canvasSize.height }}
+                    >
+                      <defs>
+                        <pattern id="grid-fullscreen" width="40" height="40" patternUnits="userSpaceOnUse">
+                          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgb(var(--color-border))" strokeWidth="0.5" opacity="0.15" />
+                        </pattern>
+                      </defs>
+                      <rect width="100%" height="100%" fill="url(#grid-fullscreen)" />
+                    </svg>
+
+                    {/* Edges */}
+                    <svg
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ width: canvasSize.width, height: canvasSize.height }}
+                    >
+                      <defs>
+                        <marker id="arrowhead-fullscreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                          <polygon points="0 0, 10 3.5, 0 7" fill="rgb(var(--color-primary))" />
+                        </marker>
+                      </defs>
+                      {edges.map((edge, i) => {
+                        const sourceNode = [...nodes, ...hintNodes].find(n => n.id === edge.sourceId);
+                        const targetNode = [...nodes, ...hintNodes].find(n => n.id === edge.targetId);
+                        if (!sourceNode || !targetNode) return null;
+                        return <ClueEdge key={i} edge={edge} sourcePos={sourceNode.position} targetPos={targetNode.position} />;
+                      })}
+                    </svg>
+
+                    {/* Nodes */}
+                    {nodes.map((node) => (
+                      <ClueNode key={node.id} node={node} onClick={() => setSelectedNode(node)} />
+                    ))}
+
+                    {/* Hint nodes */}
+                    {hintNodes.length > 0 && (
+                      <div className="mt-8 pt-4 border-t border-border/20">
+                        <div className="text-xs text-text-muted px-2 mb-2 flex items-center gap-1">
+                          <Lightbulb className="w-3 h-3" />
+                          AI 线索
+                        </div>
+                        {hintNodes.map((node) => (
+                          <ClueNode key={node.id} node={node} onClick={() => setSelectedNode(node)} />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Clue List Panel */}
+                    <div
+                      className="absolute pointer-events-auto"
+                      style={{
+                        left: clueListPosition.x,
+                        top: clueListPosition.y,
+                        width: LAYOUT.CLUE_LIST_WIDTH,
+                      }}
+                    >
+                      <div className="mb-6">
+                        <h3 className="text-lg font-bold text-text/90 select-none">线索列表</h3>
+                        <div className="h-px bg-border/30 mt-2" />
+                      </div>
+
+                      {myHints.length > 0 && (
+                        <div className="mb-6">
+                          <div className="text-sm font-semibold text-text/70 mb-3 select-none flex items-center gap-2">
+                            <Lock className="w-4 h-4" />
+                            我的线索 ({myHints.length})
+                          </div>
+                          <div className="space-y-2">
+                            {myHints.map((hint, i) => (
+                              <ClueCard
+                                key={hint.id}
+                                hint={hint}
+                                index={i + 1}
+                                isMine={true}
+                                onTogglePublic={onTogglePublic}
+                                onClick={() => {
+                                  const hintNode: PositionedClueNode = {
+                                    id: `hint_${hint.id}`,
+                                    content: hint.content,
+                                    category: '其他',
+                                    status: 'hint',
+                                    sourceQuestionIds: [],
+                                    isKey: false,
+                                    position: { x: 0, y: 0 },
+                                  };
+                                  setSelectedNode(hintNode);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {otherPublicHints.length > 0 && (
+                        <div className="mb-6">
+                          <div className="text-sm font-semibold text-text/70 mb-3 select-none flex items-center gap-2">
+                            <Eye className="w-4 h-4" />
+                            公开线索 ({otherPublicHints.length})
+                          </div>
+                          <div className="space-y-2">
+                            {otherPublicHints.map((hint, i) => (
+                              <ClueCard
+                                key={hint.id}
+                                hint={hint}
+                                index={i + 1}
+                                isMine={false}
+                                onClick={() => {
+                                  const hintNode: PositionedClueNode = {
+                                    id: `hint_${hint.id}`,
+                                    content: hint.content,
+                                    category: '其他',
+                                    status: 'hint',
+                                    sourceQuestionIds: [],
+                                    isKey: false,
+                                    position: { x: 0, y: 0 },
+                                  };
+                                  setSelectedNode(hintNode);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {hintNodes.length > 0 && (
+                        <div>
+                          <div className="text-sm font-semibold text-text/70 mb-3 select-none flex items-center gap-2">
+                            <Lightbulb className="w-4 h-4" />
+                            AI 分析线索 ({hintNodes.length})
+                          </div>
+                          <div className="space-y-2">
+                            {hintNodes.map((node, i) => (
+                              <ClueCard
+                                key={node.id}
+                                hint={{
+                                  id: node.id.replace('hint_', ''),
+                                  channelId: '',
+                                  content: node.content,
+                                  isPublic: true,
+                                  userId: '',
+                                  createdAt: new Date().toISOString(),
+                                  user: { id: 'ai', nickname: 'AI', avatarSeed: 'ai' },
+                                }}
+                                index={i + 1}
+                                isMine={false}
+                                isAIGenerated={true}
+                                onClick={() => setSelectedNode(node)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {myHints.length === 0 && otherPublicHints.length === 0 && hintNodes.length === 0 && (
+                        <div className="text-center py-8 text-text/40 text-xs select-none">
+                          暂无线索
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* Top Right Controls */}
+                <div className="absolute top-4 right-4 z-10 flex flex-col gap-3 items-end pointer-events-none">
+                  <div className="flex items-center gap-1 bg-surface/80 backdrop-blur-xl border border-border/40 p-1 rounded-xl shadow-lg pointer-events-auto">
+                    <button onClick={handleZoomOut} className="p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors">
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs text-text-muted w-12 text-center font-medium">
+                      {Math.round(scale * 100)}%
+                    </span>
+                    <button onClick={handleZoomIn} className="p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors">
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="bg-surface/80 backdrop-blur-xl border border-border/40 p-3 rounded-xl shadow-lg pointer-events-auto text-xs flex flex-col gap-2.5 min-w-[100px]">
+                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><CheckCircle className="w-3.5 h-3.5 text-yes" /> 已确认</div>
+                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><PieChart className="w-3.5 h-3.5 text-orange-500" /> 部分</div>
+                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><XCircle className="w-3.5 h-3.5 text-no" /> 已排除</div>
+                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><Lightbulb className="w-3.5 h-3.5 text-primary" /> AI线索</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Request Button */}
+              <div className="flex-shrink-0 border-t border-border/30 bg-bg/95 backdrop-blur-md px-4 py-3">
+                <button
+                  type="button"
+                  onClick={onRequestHint}
+                  disabled={disabled}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+                    font-medium text-sm transition-all duration-200
+                    ${disabled
+                      ? 'bg-surface text-text-muted cursor-not-allowed'
+                      : 'bg-primary hover:bg-primary-light text-white cursor-pointer active:scale-[0.98]'
+                    }`}
+                >
+                  {hintLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>请求中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lightbulb className="w-4 h-4" />
+                      <span>{channelEnded ? '游戏已结束' : exhausted ? '线索已用完' : `请求线索 (${myRemaining})`}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -627,46 +934,59 @@ function ClueCard({ hint, index, isMine, isAIGenerated = false, onTogglePublic, 
       className="group relative cursor-pointer transition-all duration-150 hover:translate-x-0.5"
     >
       {/* Flat card design */}
-      <div className="flex items-start gap-2 py-2 px-2 border-l-2 border-transparent hover:border-primary/40 transition-colors">
+      <div className="flex items-start gap-3 py-2.5 px-3 border-l-2 border-transparent hover:border-primary/40 transition-colors">
         {/* Index */}
-        <span className="text-[11px] font-semibold text-text/40 select-none mt-0.5">
+        <span className="text-sm font-bold text-text/30 select-none mt-1 w-5 flex-shrink-0">
           {String(index).padStart(2, '0')}
         </span>
         
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-2 mb-1.5">
             {isAIGenerated && (
-              <span className="text-[9px] px-1 py-0.5 bg-primary/10 text-primary font-medium select-none">
+              <span className="text-[10px] px-1.5 py-0.5 bg-primary/15 text-primary font-semibold select-none rounded">
                 AI
               </span>
             )}
             {!isAIGenerated && (
-              <span className="text-[10px] text-text/40 select-none">
+              <span className="text-xs text-text/50 select-none font-medium">
                 @{hint.user.nickname}
               </span>
             )}
           </div>
-          <p className="text-[13px] text-text/80 leading-relaxed line-clamp-2 select-none">
+          <p className="text-sm text-text/90 leading-relaxed line-clamp-2 select-none font-medium">
             {hint.content}
           </p>
-          {isMine && !isAIGenerated && (
-            <div className="mt-1.5 flex items-center gap-2">
-              <span className="text-[9px] text-text/30 select-none">
-                {hint.isPublic ? '已公开' : '私密'}
-              </span>
-              {onTogglePublic && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTogglePublic(hint.id, !hint.isPublic);
-                  }}
-                  className="text-[9px] text-primary/60 hover:text-primary transition-colors"
-                >
-                  {hint.isPublic ? '取消公开' : '公开'}
-                </button>
-              )}
+          {isMine && !isAIGenerated && onTogglePublic && (
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePublic(hint.id, !hint.isPublic);
+                }}
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold
+                  transition-all duration-200 active:scale-95
+                  touch-manipulation min-h-[32px]
+                  ${hint.isPublic 
+                    ? 'bg-primary/15 text-primary border border-primary/30 hover:bg-primary/20' 
+                    : 'bg-surface text-text-muted border border-border hover:bg-surface/80 hover:text-text'
+                  }
+                `}
+              >
+                {hint.isPublic ? (
+                  <>
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>已公开</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>私密</span>
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>
