@@ -41,7 +41,7 @@ export default function SharePreviewModal({
       const res = await fetch(dataUrl);
       setImageBlob(await res.blob());
     } catch (err) {
-      console.warn('[ShareCard] first render attempt failed, retrying...', err);
+      // First attempt failed, retrying...
       try {
         await new Promise((r) => setTimeout(r, 300));
         const dataUrl = await toPng(cardRef.current!, {
@@ -53,7 +53,7 @@ export default function SharePreviewModal({
         const res = await fetch(dataUrl);
         setImageBlob(await res.blob());
       } catch (retryErr) {
-        console.error('[ShareCard] image generation failed', retryErr);
+        // Image generation failed after retry
       }
     } finally {
       setGenerating(false);
@@ -79,7 +79,7 @@ export default function SharePreviewModal({
         toast.error('当前浏览器不支持复制图片，请使用分享或保存按钮');
       }
     } catch (err) {
-      console.error('Copy failed:', err);
+      console.error('Copy failed');
       toast.error('复制失败，请使用分享或保存按钮');
     }
   };
@@ -110,7 +110,7 @@ export default function SharePreviewModal({
       URL.revokeObjectURL(blobUrl);
       toast.success('图片已保存');
     } catch (err) {
-      console.error('Download failed:', err);
+      console.error('Download failed');
       toast.error('保存失败，请尝试分享按钮');
     }
   };
@@ -125,7 +125,6 @@ export default function SharePreviewModal({
       }
     } catch (err) {
       // User cancelled or not supported
-      console.log('Share cancelled or failed:', err);
     }
   };
 
@@ -180,7 +179,7 @@ export default function SharePreviewModal({
         {/* Card preview */}
         <div
           className="w-full rounded-lg overflow-hidden shadow-2xl shadow-black/50"
-          style={{ aspectRatio: '390 / 520' }}
+          style={{ aspectRatio: '360 / 500' }}
         >
           {generating ? (
             <div className="w-full h-full bg-[#1c1917] flex items-center justify-center">

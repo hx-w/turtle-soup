@@ -39,9 +39,7 @@ export default function ClueBoard({
 
   const canvasSize = useMemo(() => {
     const allNodes = [...nodes, ...hintNodes];
-    const size = calculateCanvasSize(allNodes);
-    console.log('canvasSize calculated:', size, 'from nodes:', allNodes.length);
-    return size;
+    return calculateCanvasSize(allNodes);
   }, [nodes, hintNodes]);
 
   const drawerContainerRef = useRef<HTMLDivElement>(null);
@@ -77,20 +75,14 @@ export default function ClueBoard({
   }, [nodes, hintNodes]);
 
   const fitToScreen = useCallback(() => {
-    if (!drawerContainerRef.current) {
-      console.log('fitToScreen: drawerContainerRef not ready');
-      return;
-    }
+    if (!drawerContainerRef.current) return;
 
     const bounds = calculateBounds();
-    console.log('fitToScreen bounds:', bounds);
     const containerWidth = drawerContainerRef.current.clientWidth;
-    const containerHeight = Math.max(drawerContainerRef.current.clientHeight - 60, 400); // 最小高度400
+    const containerHeight = Math.max(drawerContainerRef.current.clientHeight - 60, 400);
 
     const contentWidth = bounds.maxX - bounds.minX;
     const contentHeight = bounds.maxY - bounds.minY;
-
-    console.log('fitToScreen dimensions:', { containerWidth, containerHeight, contentWidth, contentHeight });
 
     const newScale = Math.min(
       containerWidth / Math.max(contentWidth, 1),
@@ -100,8 +92,6 @@ export default function ClueBoard({
 
     const newPosX = (containerWidth - contentWidth * newScale) / 2 - bounds.minX * newScale;
     const newPosY = (containerHeight - contentHeight * newScale) / 2 - bounds.minY * newScale;
-
-    console.log('fitToScreen result:', { newScale, newPosX, newPosY });
 
     setDrawerScale(newScale);
     setDrawerPosition({ x: newPosX, y: newPosY });
@@ -189,18 +179,10 @@ export default function ClueBoard({
 
   useEffect(() => {
     if (isDrawerOpen && drawerContainerRef.current) {
-      console.log('Drawer opened, nodes:', nodes.length, 'hintNodes:', hintNodes.length, 'edges:', edges.length);
       setDrawerScale(1);
       setDrawerPosition({ x: 0, y: 0 });
       
-      // 延迟调用 fitToScreen，等待容器完全渲染
       const timer = setTimeout(() => {
-        if (drawerContainerRef.current) {
-          console.log('Container dimensions:', {
-            clientWidth: drawerContainerRef.current.clientWidth,
-            clientHeight: drawerContainerRef.current.clientHeight
-          });
-        }
         fitToScreen();
       }, 300);
       
@@ -216,19 +198,28 @@ export default function ClueBoard({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isDrawerOpen]);
+  // Lock background scroll when drawer is open
+  useEffect(() => {
+    if (isDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isDrawerOpen]);
+  // Lock background scroll when node detail modal is open
+  useEffect(() => {
+    if (selectedNode) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [selectedNode]);
 
   const hasAnyClueContent = nodes.length > 0 || hintNodes.length > 0 || myHints.length > 0 || otherPublicHints.length > 0;
 
-  console.log('ClueBoard render:', {
-    loading,
-    nodes: nodes.length,
-    edges: edges.length,
-    hintNodes: hintNodes.length,
-    myHints: myHints.length,
-    otherPublicHints: otherPublicHints.length,
-    hasAnyClueContent,
-    error
-  });
+
 
   if (!loading && !hasAnyClueContent) {
     return (
@@ -408,11 +399,7 @@ export default function ClueBoard({
           {(nodes.length > 0 || hintNodes.length > 0) && (
             <div className="pt-4 border-t border-border/30">
               <button
-                onClick={() => {
-                  console.log('Button clicked, opening drawer');
-                  console.log('Current state:', { nodes: nodes.length, hintNodes: hintNodes.length, edges: edges.length });
-                  setIsDrawerOpen(true);
-                }}
+                onClick={() => setIsDrawerOpen(true)}
                 className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl
                   bg-black/5 dark:bg-white/10 
                   hover:bg-black/10 dark:hover:bg-white/15
@@ -577,7 +564,7 @@ export default function ClueBoard({
                     >
                       <defs>
                         <pattern id="grid-drawer" width="40" height="40" patternUnits="userSpaceOnUse">
-                          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgb(var(--color-border))" strokeWidth="0.5" opacity="0.15" />
+                          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#d1d5db" strokeWidth="0.5" className="dark:stroke-gray-600" opacity="0.4" />
                         </pattern>
                       </defs>
                       <rect width="100%" height="100%" fill="url(#grid-drawer)" />
@@ -600,10 +587,9 @@ export default function ClueBoard({
                       })}
                     </svg>
 
-                    {nodes.map((node) => {
-                      console.log('Rendering node:', node.id, node.content, node.position);
-                      return <ClueNode key={node.id} node={node} onClick={() => setSelectedNode(node)} />;
-                    })}
+                    {nodes.map((node) => (
+                      <ClueNode key={node.id} node={node} onClick={() => setSelectedNode(node)} />
+                    ))}
 
                     {hintNodes.length > 0 && (
                       <div className="mt-8 pt-4 border-t border-border/20">
@@ -611,10 +597,9 @@ export default function ClueBoard({
                           <Lightbulb className="w-3 h-3" />
                           AI 线索
                         </div>
-                        {hintNodes.map((node) => {
-                          console.log('Rendering hintNode:', node.id, node.content, node.position);
-                          return <ClueNode key={node.id} node={node} onClick={() => setSelectedNode(node)} />;
-                        })}
+                        {hintNodes.map((node) => (
+                          <ClueNode key={node.id} node={node} onClick={() => setSelectedNode(node)} />
+                        ))}
                       </div>
                     )}
                   </motion.div>

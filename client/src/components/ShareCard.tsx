@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Sparkles, MessageCircle, Users, Target } from 'lucide-react';
 import type { Channel, ChannelStats } from '../types';
 import { useThemeStore } from '../stores/themeStore';
 
@@ -20,9 +20,24 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
     const theme = useThemeStore((s) => s.theme);
     const isDark = theme === 'dark';
 
-    const bgParams = isDark 
-      ? { bg: '#1c1c1e', text: '#f5f5f7', subText: '#98989d', divider: '#38383a', cardBg: '#2c2c2e', barBg: '#38383a' }
-      : { bg: '#ffffff', text: '#1d1d1f', subText: '#86868b', divider: '#e5e5ea', cardBg: '#f2f2f7', barBg: '#e5e5ea' };
+    // Apple-style system colors — no purple/violet gradients
+    const colors = isDark
+      ? {
+          bg: '#1c1c1e',
+          cardBg: '#2c2c2e',
+          text: '#f5f5f7',
+          subText: '#98989d',
+          divider: '#38383a',
+          accent: '#0A84FF',
+        }
+      : {
+          bg: '#ffffff',
+          cardBg: '#f2f2f7',
+          text: '#1c1c1e',
+          subText: '#8e8e93',
+          divider: '#d1d1d6',
+          accent: '#007AFF',
+        };
 
     const total = stats.totalQuestions;
     const dist = stats.distribution;
@@ -35,66 +50,95 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
     const irrelevantP = total > 0 ? (dist.irrelevant / total) * 100 : 0;
 
     const endDate = channel.endedAt
-      ? new Date(channel.endedAt).toLocaleDateString('zh-CN')
+      ? new Date(channel.endedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
       : '';
 
     return (
       <div
         ref={ref}
         style={{
-          width: 390,
-          height: 520,
-          backgroundColor: bgParams.bg,
-          color: bgParams.text,
+          width: 360,
+          minHeight: 460,
+          maxHeight: 540,
+          backgroundColor: colors.bg,
+          color: colors.text,
           fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           position: 'relative',
-          borderRadius: 24,
-          boxShadow: isDark 
-            ? 'inset 0 0 0 1px rgba(255, 255, 255, 0.1)' 
-            : 'inset 0 0 0 1px rgba(0, 0, 0, 0.05)',
+          borderRadius: 20,
+          border: isDark ? '1px solid #38383a' : '1px solid #d1d1d6',
         }}
       >
-        {/* Top amber line */}
-        <div style={{ height: 5, backgroundColor: '#d97706', flexShrink: 0 }} />
+        {/* Solid accent bar — no gradient */}
+        <div
+          style={{
+            height: 3,
+            background: colors.accent,
+            flexShrink: 0,
+          }}
+        />
 
         <div
           style={{
             flex: 1,
-            padding: '24px 24px 60px',
+            padding: '24px 24px 20px',
             display: 'flex',
             flexDirection: 'column',
             gap: 0,
             overflow: 'hidden',
           }}
         >
-          {/* Header: brand + rating */}
+          {/* Header */}
           <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 16,
+              marginBottom: 20,
             }}
           >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: bgParams.subText,
-                letterSpacing: '0.05em',
-              }}
-            >
-              海龟汤
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: colors.accent,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Sparkles size={18} color="#fff" />
+              </div>
+              <span
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: colors.text,
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                海龟汤
+              </span>
+            </div>
             {typeof rating === 'number' && rating > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Star size={16} fill="#d97706" color="#d97706" />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '6px 12px',
+                  background: colors.cardBg,
+                  borderRadius: 20,
+                }}
+              >
+                <Star size={14} fill={colors.accent} color={colors.accent} />
                 <span
-                  style={{ fontSize: 16, fontWeight: 700, color: '#d97706' }}
+                  style={{ fontSize: 14, fontWeight: 700, color: colors.accent }}
                 >
                   {rating.toFixed(1)}
                 </span>
@@ -102,31 +146,35 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
             )}
           </div>
 
-          <div style={{ height: 1, backgroundColor: bgParams.divider, marginBottom: 16 }} />
-
           {/* Surface */}
-          <div style={{ marginBottom: 16, flexShrink: 0, minHeight: 0 }}>
+          <div
+            style={{
+              marginBottom: 20,
+              flexShrink: 0,
+              minHeight: 0,
+            }}
+          >
             <span
               style={{
                 fontSize: 11,
                 fontWeight: 600,
-                color: '#d97706',
+                color: colors.accent,
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                letterSpacing: '0.12em',
               }}
             >
               汤面
             </span>
             <div
               style={{
-                fontSize: 16,
-                lineHeight: 1.6,
-                color: bgParams.text,
-                marginTop: 8,
+                fontSize: 14,
+                lineHeight: 1.65,
+                color: colors.text,
+                marginTop: 10,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 display: '-webkit-box',
-                WebkitLineClamp: 5,
+                WebkitLineClamp: 4,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -136,121 +184,226 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
             </div>
           </div>
 
-          {/* Stats row inside a nice card background */}
+          {/* Stats cards row */}
           <div
             style={{
-              backgroundColor: bgParams.cardBg,
-              borderRadius: 16,
-              padding: '16px',
-              marginBottom: 12,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 10,
+              marginBottom: 16,
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                background: colors.cardBg,
+                borderRadius: 14,
+                padding: '14px 10px',
+                textAlign: 'center',
+              }}
+            >
+              <MessageCircle size={18} color={colors.accent} style={{ marginBottom: 6 }} />
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: colors.text,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {total}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: colors.subText,
+                  marginTop: 3,
+                  fontWeight: 500,
+                }}
+              >
+                提问
+              </div>
+            </div>
+            <div
+              style={{
+                background: colors.cardBg,
+                borderRadius: 14,
+                padding: '14px 10px',
+                textAlign: 'center',
+              }}
+            >
+              <Users size={18} color={colors.accent} style={{ marginBottom: 6 }} />
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: colors.text,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {stats.playerCount}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: colors.subText,
+                  marginTop: 3,
+                  fontWeight: 500,
+                }}
+              >
+                玩家
+              </div>
+            </div>
+            <div
+              style={{
+                background: colors.cardBg,
+                borderRadius: 14,
+                padding: '14px 10px',
+                textAlign: 'center',
+              }}
+            >
+              <Target size={18} color={colors.accent} style={{ marginBottom: 6 }} />
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: colors.text,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {difficultyLabel[channel.difficulty] ?? '中等'}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: colors.subText,
+                  marginTop: 3,
+                  fontWeight: 500,
+                }}
+              >
+                难度
+              </div>
+            </div>
+          </div>
+
+          {/* Distribution bar */}
+          <div
+            style={{
+              background: colors.cardBg,
+              borderRadius: 14,
+              padding: '14px',
+              marginBottom: 14,
               flexShrink: 0,
             }}
           >
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
-                textAlign: 'center',
-                marginBottom: 16,
+                height: 5,
+                borderRadius: 2.5,
+                overflow: 'hidden',
+                marginBottom: 10,
+                background: isDark ? '#38383a' : '#e5e5ea',
+              }}
+            >
+              {yesP > 0 && (
+                <div
+                  style={{
+                    width: `${yesP}%`,
+                    background: '#34c759',
+                  }}
+                />
+              )}
+              {noP > 0 && (
+                <div
+                  style={{
+                    width: `${noP}%`,
+                    background: '#ff3b30',
+                  }}
+                />
+              )}
+              {partialP > 0 && (
+                <div
+                  style={{
+                    width: `${partialP}%`,
+                    background: '#ff9500',
+                  }}
+                />
+              )}
+              {irrelevantP > 0 && (
+                <div
+                  style={{
+                    width: `${irrelevantP}%`,
+                    background: '#8e8e93',
+                  }}
+                />
+              )}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                fontSize: 11,
+                color: colors.subText,
+                justifyContent: 'center',
+                fontWeight: 500,
               }}
             >
               {[
-                { value: String(total), label: '提问' },
-                { value: String(stats.playerCount), label: '玩家' },
-                {
-                  value: difficultyLabel[channel.difficulty] ?? '中等',
-                  label: '难度',
-                },
-              ].map((item) => (
-                <div key={item.label} style={{ flex: 1 }}>
-                  <div
+                { color: '#34c759', label: '是', count: dist.yes },
+                { color: '#ff3b30', label: '否', count: dist.no },
+                { color: '#ff9500', label: '部分', count: dist.partial },
+                { color: '#8e8e93', label: '无关', count: dist.irrelevant },
+              ].map((d) => (
+                <span key={d.label} style={{ display: 'flex', alignItems: 'center' }}>
+                  <span
                     style={{
-                      fontSize: 22,
-                      fontWeight: 700,
-                      color: '#d97706',
-                      fontVariantNumeric: 'tabular-nums',
+                      display: 'inline-block',
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: d.color,
+                      marginRight: 4,
                     }}
-                  >
-                    {item.value}
-                  </div>
-                  <div style={{ fontSize: 12, color: bgParams.subText, marginTop: 4, fontWeight: 500 }}>
-                    {item.label}
-                  </div>
-                </div>
+                  />
+                  {d.label} {d.count}
+                </span>
               ))}
-            </div>
-
-            {/* Distribution bar */}
-            <div>
-              <div
-                style={{
-                  display: 'flex',
-                  height: 8,
-                  borderRadius: 4,
-                  overflow: 'hidden',
-                  backgroundColor: bgParams.barBg,
-                }}
-              >
-                {yesP > 0 && (
-                  <div style={{ width: `${yesP}%`, backgroundColor: '#34c759' }} />
-                )}
-                {noP > 0 && (
-                  <div style={{ width: `${noP}%`, backgroundColor: '#ff3b30' }} />
-                )}
-                {partialP > 0 && (
-                  <div style={{ width: `${partialP}%`, backgroundColor: '#ff9500' }} />
-                )}
-                {irrelevantP > 0 && (
-                  <div style={{ width: `${irrelevantP}%`, backgroundColor: '#8e8e93' }} />
-                )}
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 12,
-                  marginTop: 8,
-                  fontSize: 11,
-                  color: bgParams.subText,
-                  justifyContent: 'center',
-                  fontWeight: 500,
-                }}
-              >
-                {[
-                  { color: '#34c759', label: '是', count: dist.yes },
-                  { color: '#ff3b30', label: '否', count: dist.no },
-                  { color: '#ff9500', label: '部分', count: dist.partial },
-                  { color: '#8e8e93', label: '无关', count: dist.irrelevant },
-                ].map((d) => (
-                  <span key={d.label} style={{ display: 'flex', alignItems: 'center' }}>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        backgroundColor: d.color,
-                        marginRight: 4,
-                      }}
-                    />
-                    {d.label} {d.count}
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
 
-          {/* Key question */}
+          {/* Key question highlight */}
           {lastYes && (
-            <div style={{ marginBottom: 12, flexShrink: 0 }}>
-              <div style={{ fontSize: 12, color: '#d97706', marginBottom: 6, fontWeight: 600 }}>
-                🎯 关键一问
+            <div
+              style={{
+                marginBottom: 14,
+                flexShrink: 0,
+                padding: '12px 14px',
+                background: colors.cardBg,
+                borderRadius: 14,
+                borderLeft: `3px solid ${colors.accent}`,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  color: colors.accent,
+                  marginBottom: 6,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <span>🎯</span> 关键一问
               </div>
               <p
                 style={{
-                  fontSize: 14,
-                  color: bgParams.text,
-                  lineHeight: 1.5,
+                  fontSize: 13,
+                  color: colors.text,
+                  lineHeight: 1.55,
                   fontStyle: 'italic',
+                  margin: 0,
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
@@ -258,15 +411,16 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
                   textOverflow: 'ellipsis',
                 }}
               >
-                "{lastYes.content}"
+                &ldquo;{lastYes.content}&rdquo;
               </p>
               {lastYes.asker?.nickname && (
                 <p
                   style={{
-                    fontSize: 12,
-                    color: bgParams.subText,
+                    fontSize: 11,
+                    color: colors.subText,
                     textAlign: 'right',
-                    marginTop: 6,
+                    margin: 0,
+                    paddingTop: 6,
                   }}
                 >
                   —— @{lastYes.asker.nickname}
@@ -280,11 +434,12 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
           {/* CTA */}
           <div
             style={{
-              fontSize: 15,
+              fontSize: 13,
               fontWeight: 600,
-              color: '#d97706',
+              color: colors.accent,
               marginBottom: 16,
               textAlign: 'center',
+              letterSpacing: '-0.01em',
             }}
           >
             你能猜到汤底吗？
@@ -294,8 +449,8 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
           <div
             style={{
               height: 1,
-              backgroundColor: bgParams.divider,
-              marginBottom: 12,
+              background: colors.divider,
+              marginBottom: 10,
             }}
           />
           <div
@@ -304,7 +459,7 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
               justifyContent: 'space-between',
               alignItems: 'center',
               fontSize: 11,
-              color: bgParams.subText,
+              color: colors.subText,
               fontWeight: 500,
             }}
           >
@@ -323,13 +478,13 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 10,
-              color: bgParams.subText,
-              letterSpacing: '0.04em',
+              color: colors.subText,
+              letterSpacing: '0.05em',
               fontWeight: 500,
-              opacity: 0.7,
+              opacity: 0.4,
             }}
           >
-            @carol
+            @carol-product
           </div>
         </div>
       </div>

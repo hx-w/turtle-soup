@@ -33,7 +33,7 @@ export const LAYOUT = {
   CLUE_LIST_WIDTH: 340, // Width for the clue list panel
   CLUE_LIST_GAP: 80, // Gap between nodes and clue list
   NODE_WIDTH: 220,
-  NODE_HEIGHT: 140,
+  NODE_HEIGHT: 160,
 };
 
 // Position persistence versioning
@@ -96,8 +96,8 @@ function layoutNodes(
     const g = new dagre.graphlib.Graph();
     g.setGraph({
       rankdir: 'TB',     // Top to bottom (good for mobile)
-      nodesep: 60,       // Horizontal spacing between nodes
-      ranksep: 100,      // Vertical spacing between ranks
+      nodesep: 100,      // Horizontal spacing between nodes
+      ranksep: 140,      // Vertical spacing between ranks
       marginx: LAYOUT.START_X,
       marginy: LAYOUT.START_Y,
     });

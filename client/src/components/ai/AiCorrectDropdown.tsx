@@ -60,8 +60,10 @@ export default function AiCorrectDropdown({
       const spaceBelow = viewportHeight - rect.bottom - 8;
       const spaceAbove = rect.top - 8;
       
-      // Require ~220px to comfortably drop down. If less and above has more space, drop up.
-      const shouldDropUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+      // Lower threshold for drop-up to prevent cutoff issues
+      // Menu height is ~180px, add safety margin
+      const menuHeight = 200;
+      const shouldDropUp = spaceBelow < menuHeight && spaceAbove > menuHeight;
       setDropUp(shouldDropUp);
       
       let leftPos = rect.left;
@@ -69,9 +71,9 @@ export default function AiCorrectDropdown({
         leftPos = Math.max(10, viewportWidth - menuWidth - 10);
       }
       
-      // Bound max height to prevent overflowing viewport, with a minimum fallback
-      let maxH = shouldDropUp ? spaceAbove - 8 : spaceBelow - 8;
-      maxH = Math.max(maxH, 240);
+      // Bound max height to prevent overflowing viewport
+      let maxH = shouldDropUp ? spaceAbove - 16 : spaceBelow - 16;
+      maxH = Math.max(maxH, 180); // Minimum height
 
       if (shouldDropUp) {
         setPosition({ top: rect.top - 8, left: leftPos, maxHeight: maxH });

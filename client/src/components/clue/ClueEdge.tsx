@@ -42,7 +42,7 @@ export default function ClueEdge({ edge, sourcePos, targetPos }: ClueEdgeProps) 
 
   // Node center offset
   const nodeOffsetX = 100;
-  const nodeOffsetY = 40;
+  const nodeOffsetY = 70;
 
   const startX = sourcePos.x + nodeOffsetX;
   const startY = sourcePos.y + nodeOffsetY;

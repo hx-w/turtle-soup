@@ -35,33 +35,41 @@ const categoryIconMap: Record<string, React.ComponentType<{ className?: string }
   '其他': Circle,
 };
 
-// Apple-flat: opaque fills, no borders, no transparency
+// Apple flat design: solid muted fills, no semi-transparency, harmonious with dark bg
 const statusConfig = {
   confirmed: {
-    bg: 'bg-[#e8f5ee] dark:bg-[#1e3a2a]',
-    iconColor: 'text-yes',
-    textColor: 'text-text/90',
+    bg: 'bg-emerald-50 dark:bg-[#1a2f23]',
+    shadow: 'shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.3)]',
+    border: 'border border-emerald-200/60 dark:border-emerald-800/40',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    textColor: 'text-gray-900 dark:text-gray-100',
     label: '已确认',
     Icon: CheckCircle2,
   },
   partial: {
-    bg: 'bg-[#e6eff7] dark:bg-[#1e2d3d]',
-    iconColor: 'text-primary',
-    textColor: 'text-text/90',
+    bg: 'bg-amber-50 dark:bg-[#2a2520]',
+    shadow: 'shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.3)]',
+    border: 'border border-amber-200/60 dark:border-amber-800/40',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+    textColor: 'text-gray-900 dark:text-gray-100',
     label: '部分确认',
     Icon: CircleDashed,
   },
   excluded: {
-    bg: 'bg-[#f0f1f3] dark:bg-[#2a2d31]',
-    iconColor: 'text-text-muted/50',
-    textColor: 'text-text-muted/60',
+    bg: 'bg-gray-100 dark:bg-[#252525]',
+    shadow: 'shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.25)]',
+    border: 'border border-gray-200/60 dark:border-gray-700/40',
+    iconColor: 'text-gray-400 dark:text-gray-500',
+    textColor: 'text-gray-500 dark:text-gray-400',
     label: '已排除',
     Icon: XCircle,
   },
   hint: {
-    bg: 'bg-[#eaf0f6] dark:bg-[#1e2b38]',
-    iconColor: 'text-primary',
-    textColor: 'text-text/90',
+    bg: 'bg-indigo-50 dark:bg-[#222230]',
+    shadow: 'shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.3)]',
+    border: 'border border-indigo-200/60 dark:border-indigo-800/40',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
+    textColor: 'text-gray-900 dark:text-gray-100',
     label: 'AI线索',
     Icon: CircleDashed,
   },
@@ -88,31 +96,33 @@ export default function ClueNode({ node, onClick }: ClueNodeProps) {
       <div
         className={`
           relative min-w-[176px] max-w-[216px]
-          rounded-[14px] px-3.5 py-3
+          rounded-2xl px-4 py-3.5
           transition-all duration-200 ease-out
           hover:-translate-y-0.5
           ${config.bg}
-          ${node.isKey ? 'ring-[1.5px] ring-yes/25 dark:ring-yes/15' : ''}
-          ${node.status === 'excluded' ? 'opacity-60' : ''}
+          ${config.shadow}
+          ${config.border}
+          ${node.isKey ? 'ring-2 ring-emerald-500 dark:ring-emerald-400' : ''}
+          ${node.status === 'excluded' ? 'opacity-70' : ''}
         `}
       >
         {/* Key badge */}
         {node.isKey && (
-          <div className="absolute -top-1 -right-1 w-[18px] h-[18px] bg-yes rounded-full flex items-center justify-center">
+          <div className="absolute -top-1.5 -right-1.5 w-[20px] h-[20px] bg-emerald-500 rounded-full flex items-center justify-center shadow-sm">
             <Target className="w-2.5 h-2.5 text-white" />
           </div>
         )}
 
         {/* Category row */}
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <CategoryIcon className="w-3 h-3 text-text-muted/40 flex-shrink-0" />
-          <span className="text-[10px] text-text-muted/50 tracking-wide truncate">
+        <div className="flex items-center gap-1.5 mb-2">
+          <CategoryIcon className="w-3.5 h-3.5 text-text-muted/50 flex-shrink-0" />
+          <span className="text-[11px] text-text-muted/60 tracking-wide truncate font-medium">
             {node.category}
           </span>
         </div>
 
         {/* Content */}
-        <p className={`text-[13px] leading-[1.5] line-clamp-3 font-normal ${
+        <p className={`text-[13px] leading-[1.55] line-clamp-3 font-normal ${
           node.status === 'excluded'
             ? 'text-text-muted/50 line-through decoration-text-muted/20'
             : config.textColor
@@ -121,9 +131,9 @@ export default function ClueNode({ node, onClick }: ClueNodeProps) {
         </p>
 
         {/* Status pill */}
-        <div className="mt-2 flex items-center gap-1">
-          <StatusIcon className={`w-3 h-3 ${config.iconColor}`} />
-          <span className={`text-[10px] font-medium ${config.iconColor}`}>
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <StatusIcon className={`w-3.5 h-3.5 ${config.iconColor}`} />
+          <span className={`text-[11px] font-medium ${config.iconColor}`}>
             {config.label}
           </span>
         </div>

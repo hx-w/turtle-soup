@@ -39,9 +39,9 @@ export default function CreatePage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(false);
-  const [aiHostEnabled, setAiHostEnabled] = useState(false);
+  const [aiHostEnabled, setAiHostEnabled] = useState(true);
   const [aiHostDelayMinutes, setAiHostDelayMinutes] = useState(1);
-  const [aiHintEnabled, setAiHintEnabled] = useState(false);
+  const [aiHintEnabled, setAiHintEnabled] = useState(true);
   const [aiHintPerPlayer, setAiHintPerPlayer] = useState(3);
   const [customTagInput, setCustomTagInput] = useState('');
 
