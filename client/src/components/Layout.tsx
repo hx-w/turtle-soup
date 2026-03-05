@@ -18,9 +18,7 @@ export default function Layout() {
   const isAuthPage =
     location.pathname === '/login' || location.pathname === '/register';
 
-  const isFullScreenPage =
-    location.pathname.startsWith('/channel/') ||
-    location.pathname === '/create/assistant';
+  const isAssistantPage = location.pathname === '/create/assistant';
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -43,7 +41,7 @@ export default function Layout() {
   };
 
   return (
-    <div className={`${isFullScreenPage ? 'h-[100dvh]' : 'min-h-[100dvh]'} bg-bg flex flex-col`}>
+    <div className={`${isAssistantPage ? 'h-[100dvh]' : 'min-h-[100dvh]'} bg-bg flex flex-col`}>
       {/* Top bar - hidden on auth pages */}
       {!isAuthPage && (
         <header className="sticky top-0 z-50 glass-nav">
@@ -144,7 +142,7 @@ export default function Layout() {
       {/* Main content */}
       <main
         className={`flex-1 ${
-          isFullScreenPage
+          isAssistantPage
             ? 'flex flex-col relative overflow-hidden'
             : `${!isAuthPage ? 'pb-8 pt-2' : ''}`
         }`}
