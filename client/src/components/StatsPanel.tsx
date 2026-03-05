@@ -7,8 +7,11 @@ import {
   Clock,
   HelpCircle,
   Star,
+  TrendingUp,
 } from 'lucide-react';
 import type { ChannelStats } from '../types';
+import AnswerDistributionChart from './AnswerDistributionChart';
+import QuestionRhythmChart from './QuestionRhythmChart';
 
 interface StatsPanelProps {
   stats: ChannelStats;
@@ -208,9 +211,39 @@ export default function StatsPanel({ stats }: StatsPanelProps) {
       )}
 
       <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-4">
-        <p className="text-sm font-medium text-text mb-3">回答分布</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-text">回答分布</p>
+          {stats.timelineDistribution && stats.timelineDistribution.length >= 2 && (
+            <span className="text-xs text-text-muted flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              时间趋势
+            </span>
+          )}
+        </div>
         <DistributionBar distribution={stats.distribution} total={total} />
+        
+        {/* Time-series distribution chart - only show when sufficient data */}
+        {stats.timelineDistribution && stats.timelineDistribution.length >= 2 && total >= 3 && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <AnswerDistributionChart
+              data={stats.timelineDistribution}
+              total={total}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Question rhythm chart */}
+      {stats.timelineDistribution && stats.timelineDistribution.length >= 2 && total >= 5 && (
+        <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-4">
+          <p className="text-sm font-medium text-text mb-2">问题节奏</p>
+          <p className="text-xs text-text-muted mb-3">问题随时间的分布</p>
+          <QuestionRhythmChart
+            data={stats.timelineDistribution}
+            total={total}
+          />
+        </div>
+      )}
 
       {stats.hostContributions && stats.hostContributions.length > 0 && (
         <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-4">

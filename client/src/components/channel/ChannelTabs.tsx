@@ -66,9 +66,7 @@ export default function ChannelTabs({
 
               {/* Count badge for discussion */}
               {tab.key === 'discussion' && unreadCount > 0 && (
-                <span className="text-[11px] font-bold bg-accent/10 text-accent px-1.5 py-0.5 rounded-md ml-0.5">
-                  {unreadCount}
-                </span>
+                <span className="w-2 h-2 bg-orange-500 rounded-full ml-0.5" />
               )}
 
               {/* Count badge for clues */}

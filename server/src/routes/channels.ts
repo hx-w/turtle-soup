@@ -185,11 +185,11 @@ router.get('/', async (req: Request, res: Response) => {
     const endedIds = channels.filter(c => c.status === 'ended').map(c => c.id);
     const ratingAggs = endedIds.length > 0
       ? await prisma.rating.groupBy({
-          by: ['channelId'],
-          where: { channelId: { in: endedIds } },
-          _avg: { score: true },
-          _count: { score: true },
-        })
+        by: ['channelId'],
+        where: { channelId: { in: endedIds } },
+        _avg: { score: true },
+        _count: { score: true },
+      })
       : [];
     const ratingMap = new Map(ratingAggs.map(r => [r.channelId, {
       averageRating: r._avg.score ? Math.round(r._avg.score * 10) / 10 : null,
@@ -408,7 +408,7 @@ router.put('/:id/questions/:qid/answer', authRequired, validate(answerSchema), a
         const io = getIO();
         io.to(channelId).emit(SocketEvents.PROGRESS_UPDATED, { channelId, progress });
       });
-      
+
       // Async clue graph analysis (only if AI hints enabled and answer is relevant)
       if (channel.aiHintEnabled && answer !== 'irrelevant') {
         shouldReanalyze(channelId).then((needAnalyze) => {
@@ -655,9 +655,97 @@ router.get('/:id/stats', authRequired, async (req: Request, res: Response) => {
         })
     );
 
+    // Calculate timeline distribution for time-series visualization
+    interface TimelineBucket {
+      time: string;
+      timeLabel: string;
+      yes: number;
+      no: number;
+      partial: number;
+      irrelevant: number;
+      cumulativeYes: number;
+      cumulativeNo: number;
+      cumulativePartial: number;
+      cumulativeIrrelevant: number;
+      total: number;
+    }
+
+    const timelineDistribution: TimelineBucket[] = [];
+    if (questions.length > 0 && channel.createdAt) {
+      const channelStart = new Date(channel.createdAt).getTime();
+      const channelEnd = channel.endedAt ? new Date(channel.endedAt).getTime() : Date.now();
+      const durationMinutes = (channelEnd - channelStart) / 60000;
+
+      // Determine bucket size based on duration
+      let bucketMinutes: number;
+      if (durationMinutes <= 5) {
+        bucketMinutes = 1;
+      } else if (durationMinutes <= 30) {
+        bucketMinutes = 5;
+      } else if (durationMinutes <= 120) {
+        bucketMinutes = 15;
+      } else {
+        bucketMinutes = 60;
+      }
+
+      const bucketMs = bucketMinutes * 60000;
+      const bucketCount = Math.ceil(durationMinutes / bucketMinutes);
+
+      // Create buckets
+      const buckets: Map<number, { yes: number; no: number; partial: number; irrelevant: number }> = new Map();
+      for (let i = 0; i < bucketCount; i++) {
+        const bucketStart = channelStart + i * bucketMs;
+        buckets.set(bucketStart, { yes: 0, no: 0, partial: 0, irrelevant: 0 });
+      }
+
+      // Assign questions to buckets based on answeredAt (or createdAt if no answeredAt)
+      for (const q of questions) {
+        const qTime = q.answeredAt ? new Date(q.answeredAt).getTime() : new Date(q.createdAt).getTime();
+        const bucketStart = Math.floor((qTime - channelStart) / bucketMs) * bucketMs + channelStart;
+        const bucket = buckets.get(bucketStart);
+        if (bucket && q.answer) {
+          bucket[q.answer]++;
+        }
+      }
+
+      // Convert to array with cumulative counts
+      let cumulativeYes = 0, cumulativeNo = 0, cumulativePartial = 0, cumulativeIrrelevant = 0;
+      const sortedBuckets = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
+
+      for (const [bucketStart, counts] of sortedBuckets) {
+        cumulativeYes += counts.yes;
+        cumulativeNo += counts.no;
+        cumulativePartial += counts.partial;
+        cumulativeIrrelevant += counts.irrelevant;
+
+        const date = new Date(bucketStart);
+        let timeLabel: string;
+        if (bucketMinutes >= 60) {
+          timeLabel = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        } else {
+          timeLabel = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        timelineDistribution.push({
+          time: date.toISOString(),
+          timeLabel,
+          yes: counts.yes,
+          no: counts.no,
+          partial: counts.partial,
+          irrelevant: counts.irrelevant,
+          cumulativeYes,
+          cumulativeNo,
+          cumulativePartial,
+          cumulativeIrrelevant,
+          total: cumulativeYes + cumulativeNo + cumulativePartial + cumulativeIrrelevant,
+        });
+      }
+    }
+
     res.json({
       totalQuestions: total,
       distribution: { yes: yesCount, no: noCount, irrelevant: irrelevantCount, partial: partialCount },
+      timelineDistribution,
       keyQuestionCount,
       playerCount: channel.members.filter(m => m.role === 'player').length,
       hosts: channel.members.filter(m => m.role === 'host' || m.role === 'creator').map(m => ({
@@ -894,9 +982,9 @@ router.put('/:id/questions/:qid/ai-correct', authRequired, validate(aiCorrectSch
     });
 
     // Re-evaluate progress async (only if game is still active)
-    const ch = await prisma.channel.findUnique({ 
-      where: { id: channelId }, 
-      select: { aiProgress: true, status: true } 
+    const ch = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { aiProgress: true, status: true }
     });
     if (ch && ch.status === 'active') {
       evaluateProgress(channelId, ch.aiProgress).then((progress) => {
@@ -1043,15 +1131,7 @@ router.get('/:id/clues', authRequired, async (req: Request, res: Response) => {
       return;
     }
 
-    // Check if re-analysis is needed
-    const needReanalyze = await shouldReanalyze(channelId);
-    if (needReanalyze) {
-      // Trigger async analysis
-      analyzeClueGraph(channelId).catch((err) => {
-        logger.warn('Clue graph analysis failed', { channelId, error: String(err) });
-      });
-    }
-
+    // Analysis is triggered only when a question is answered (not on GET)
     const clueGraph = await getClueGraph(channelId);
     res.json(clueGraph || { nodes: [], edges: [] });
   } catch (err) {

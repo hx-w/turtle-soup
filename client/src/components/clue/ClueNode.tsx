@@ -1,9 +1,8 @@
 import { motion } from 'framer-motion';
-import { 
-  CheckCircle, 
-  XCircle, 
-  PieChart, 
-  Lightbulb, 
+import {
+  CheckCircle2,
+  XCircle,
+  CircleDashed,
   Target,
   User,
   Clock,
@@ -36,53 +35,48 @@ const categoryIconMap: Record<string, React.ComponentType<{ className?: string }
   '其他': Circle,
 };
 
-const statusStyles = {
-  confirmed: `
-    bg-white dark:bg-gray-800/80
-    border border-gray-200/80 dark:border-gray-700/50
-    shadow-sm hover:shadow-md
-  `,
-  partial: `
-    bg-white dark:bg-gray-800/80
-    border-2 border-dashed border-orange-300 dark:border-orange-600/50
-    shadow-sm hover:shadow-md
-  `,
-  excluded: `
-    bg-gray-50 dark:bg-gray-900/60
-    border border-gray-200/50 dark:border-gray-800/50
-    opacity-60
-    shadow-sm
-  `,
-  hint: `
-    bg-white dark:bg-gray-800/80
-    border border-blue-200 dark:border-blue-700/50
-    shadow-sm hover:shadow-md
-  `,
-};
-
-const statusIcons = {
-  confirmed: CheckCircle,
-  partial: PieChart,
-  excluded: XCircle,
-  hint: Lightbulb,
-};
-
-const statusColors = {
-  confirmed: 'text-yes',
-  partial: 'text-orange-500',
-  excluded: 'text-no',
-  hint: 'text-primary',
+// Apple-flat: opaque fills, no borders, no transparency
+const statusConfig = {
+  confirmed: {
+    bg: 'bg-[#e8f5ee] dark:bg-[#1e3a2a]',
+    iconColor: 'text-yes',
+    textColor: 'text-text/90',
+    label: '已确认',
+    Icon: CheckCircle2,
+  },
+  partial: {
+    bg: 'bg-[#e6eff7] dark:bg-[#1e2d3d]',
+    iconColor: 'text-primary',
+    textColor: 'text-text/90',
+    label: '部分确认',
+    Icon: CircleDashed,
+  },
+  excluded: {
+    bg: 'bg-[#f0f1f3] dark:bg-[#2a2d31]',
+    iconColor: 'text-text-muted/50',
+    textColor: 'text-text-muted/60',
+    label: '已排除',
+    Icon: XCircle,
+  },
+  hint: {
+    bg: 'bg-[#eaf0f6] dark:bg-[#1e2b38]',
+    iconColor: 'text-primary',
+    textColor: 'text-text/90',
+    label: 'AI线索',
+    Icon: CircleDashed,
+  },
 };
 
 export default function ClueNode({ node, onClick }: ClueNodeProps) {
-  const StatusIcon = statusIcons[node.status];
+  const config = statusConfig[node.status];
+  const StatusIcon = config.Icon;
   const CategoryIcon = categoryIconMap[node.category] || Circle;
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
       className={`absolute cursor-pointer select-none ${node.isKey ? 'z-10' : 'z-0'}`}
       style={{
         left: node.position.x,
@@ -93,39 +87,44 @@ export default function ClueNode({ node, onClick }: ClueNodeProps) {
     >
       <div
         className={`
-          relative min-w-[180px] max-w-[220px]
-          rounded-xl px-4 py-3
+          relative min-w-[176px] max-w-[216px]
+          rounded-[14px] px-3.5 py-3
           transition-all duration-200 ease-out
-          hover:scale-[1.02] hover:-translate-y-0.5
-          ${statusStyles[node.status]}
-          ${node.isKey ? 'ring-2 ring-amber-400 dark:ring-amber-500' : ''}
+          hover:-translate-y-0.5
+          ${config.bg}
+          ${node.isKey ? 'ring-[1.5px] ring-yes/25 dark:ring-yes/15' : ''}
+          ${node.status === 'excluded' ? 'opacity-60' : ''}
         `}
       >
+        {/* Key badge */}
         {node.isKey && (
-          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm">
+          <div className="absolute -top-1 -right-1 w-[18px] h-[18px] bg-yes rounded-full flex items-center justify-center">
             <Target className="w-2.5 h-2.5 text-white" />
           </div>
         )}
 
-        <div className="flex items-center gap-2 mb-1.5">
-          <StatusIcon className={`w-4 h-4 ${statusColors[node.status]}`} />
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <CategoryIcon className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-            <span className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wide truncate">
-              {node.category}
-            </span>
-          </div>
+        {/* Category row */}
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <CategoryIcon className="w-3 h-3 text-text-muted/40 flex-shrink-0" />
+          <span className="text-[10px] text-text-muted/50 tracking-wide truncate">
+            {node.category}
+          </span>
         </div>
 
-        <p className="text-[13px] text-gray-900 dark:text-gray-100 leading-relaxed line-clamp-3">
+        {/* Content */}
+        <p className={`text-[13px] leading-[1.5] line-clamp-3 font-normal ${
+          node.status === 'excluded'
+            ? 'text-text-muted/50 line-through decoration-text-muted/20'
+            : config.textColor
+        }`}>
           {node.content}
         </p>
 
-        <div className="mt-1.5 flex items-center gap-2">
-          <span className={`text-[10px] font-medium ${statusColors[node.status]}`}>
-            {node.status === 'confirmed' ? '已确认' :
-             node.status === 'partial' ? '部分确认' :
-             node.status === 'excluded' ? '已排除' : 'AI线索'}
+        {/* Status pill */}
+        <div className="mt-2 flex items-center gap-1">
+          <StatusIcon className={`w-3 h-3 ${config.iconColor}`} />
+          <span className={`text-[10px] font-medium ${config.iconColor}`}>
+            {config.label}
           </span>
         </div>
       </div>

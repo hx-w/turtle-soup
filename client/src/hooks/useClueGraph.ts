@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { api } from '../lib/api';
 import { connectSocket } from '../lib/socket';
 import type { ClueGraphData, ClueNode, ClueEdge, AiHint } from '../types';
-import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force';
+import dagre from '@dagrejs/dagre';
 
 interface UseClueGraphOptions {
   channelId: string | undefined;
@@ -32,6 +32,8 @@ export const LAYOUT = {
   MIN_CANVAS_SIZE: 2000,
   CLUE_LIST_WIDTH: 340, // Width for the clue list panel
   CLUE_LIST_GAP: 80, // Gap between nodes and clue list
+  NODE_WIDTH: 220,
+  NODE_HEIGHT: 140,
 };
 
 // Position persistence versioning
@@ -57,7 +59,7 @@ export const categoryIcons: Record<string, string> = {
   '其他': 'Circle',
 };
 
-// Force-directed layout algorithm using d3-force
+// Dagre-based hierarchical layout algorithm
 function layoutNodes(
   nodes: ClueNode[],
   edges: ClueEdge[],
@@ -65,74 +67,78 @@ function layoutNodes(
 ): PositionedClueNode[] {
   if (nodes.length === 0) return [];
 
-  const NODE_RADIUS = 180; // Collision radius, larger for spreading
-  const IDEAL_EDGE_LENGTH = 380; // Longer edges to untangle knots
-  const REPULSION = -6000; // Very strong repulsion to act like tiling
-  const SIMULATION_TICKS = 400; // More ticks to ensure graph unfolds without crossing
-
-  // Create D3 nodes. Note we must pass objects D3 can mutate.
-  // We use fx/fy to pin nodes that have saved positions.
-  const d3Nodes = nodes.map((node, i) => {
-    const saved = savedPositions?.[node.id];
-    return {
+  // If all nodes have saved positions, use them directly
+  const allSaved = nodes.every(n => savedPositions?.[n.id]);
+  if (allSaved && savedPositions) {
+    return nodes.map(node => ({
       ...node,
-      // D3 uses x, y for current pos, and fx, fy for fixed pos (pinned)
-      x: saved ? saved.x : undefined,
-      y: saved ? saved.y : undefined,
-      fx: saved ? saved.x : undefined,
-      fy: saved ? saved.y : undefined,
-      index: i,
-    } as any;
+      position: savedPositions[node.id],
+    }));
+  }
+
+  // Split connected and orphan nodes
+  const connectedNodeIds = new Set<string>();
+  const validEdges = edges.filter(e =>
+    nodes.some(n => n.id === e.sourceId) && nodes.some(n => n.id === e.targetId)
+  );
+  validEdges.forEach(e => {
+    connectedNodeIds.add(e.sourceId);
+    connectedNodeIds.add(e.targetId);
   });
 
-  const d3Links = edges.map(edge => ({
-    source: edge.sourceId,
-    target: edge.targetId,
-  }));
+  const connectedNodes = nodes.filter(n => connectedNodeIds.has(n.id));
+  const orphanNodes = nodes.filter(n => !connectedNodeIds.has(n.id));
 
-  // Run simulation only if there are unpinned nodes
-  const unpinned = d3Nodes.filter((n: any) => n.fx === undefined);
-  if (unpinned.length === 0) {
-    return d3Nodes.map((n: any) => {
-      const { index, vx, vy, x, y, fx, fy, ...node } = n;
-      return { ...node, position: { x: fx!, y: fy! } } as PositionedClueNode;
+  const positions: Record<string, { x: number; y: number }> = {};
+
+  // Layout connected nodes with dagre
+  if (connectedNodes.length > 0 && validEdges.length > 0) {
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({
+      rankdir: 'TB',     // Top to bottom (good for mobile)
+      nodesep: 60,       // Horizontal spacing between nodes
+      ranksep: 100,      // Vertical spacing between ranks
+      marginx: LAYOUT.START_X,
+      marginy: LAYOUT.START_Y,
+    });
+    g.setDefaultEdgeLabel(() => ({}));
+
+    connectedNodes.forEach(node => {
+      g.setNode(node.id, { width: LAYOUT.NODE_WIDTH, height: LAYOUT.NODE_HEIGHT });
+    });
+    validEdges.forEach(edge => {
+      g.setEdge(edge.sourceId, edge.targetId);
+    });
+
+    dagre.layout(g);
+
+    connectedNodes.forEach(node => {
+      const dagreNode = g.node(node.id);
+      positions[node.id] = savedPositions?.[node.id] || {
+        x: dagreNode.x - LAYOUT.NODE_WIDTH / 2,
+        y: dagreNode.y - LAYOUT.NODE_HEIGHT / 2,
+      };
     });
   }
 
-  // Calculate center of pinned nodes to pull unpinned nodes towards them
-  let cx = LAYOUT.START_X + 400, cy = LAYOUT.START_Y + 300;
-  const pinned = d3Nodes.filter((n: any) => n.fx !== undefined);
-  if (pinned.length > 0) {
-    cx = pinned.reduce((sum: number, n: any) => sum + n.fx, 0) / pinned.length;
-    cy = pinned.reduce((sum: number, n: any) => sum + n.fy, 0) / pinned.length;
+  // Layout orphan nodes in a compact grid below the dagre graph
+  if (orphanNodes.length > 0) {
+    const maxDagreY = Object.values(positions).length > 0
+      ? Math.max(...Object.values(positions).map(p => p.y)) + LAYOUT.NODE_HEIGHT + 40
+      : LAYOUT.START_Y;
+
+    orphanNodes.forEach((node, i) => {
+      positions[node.id] = savedPositions?.[node.id] || {
+        x: LAYOUT.START_X + (i % LAYOUT.COLS) * (LAYOUT.NODE_WIDTH + 30),
+        y: maxDagreY + Math.floor(i / LAYOUT.COLS) * (LAYOUT.NODE_HEIGHT + 30),
+      };
+    });
   }
 
-  // Create simulation
-  const simulation = forceSimulation(d3Nodes)
-    .force("link", forceLink(d3Links).id((d: any) => d.id).distance(IDEAL_EDGE_LENGTH).iterations(2))
-    .force("charge", forceManyBody().strength(REPULSION).distanceMax(1500))
-    .force("collide", forceCollide().radius(NODE_RADIUS).iterations(4))
-    .force("center", forceCenter(cx, cy).strength(0.01)); // Lower center gravity for broader spread
-
-  // Run simulation statically to completion
-  simulation.stop();
-  simulation.tick(SIMULATION_TICKS);
-
-  // Normalize coordinates so the minimum is at least START_X, START_Y
-  const hasSavedPositions = Object.keys(savedPositions || {}).length > 0;
-  const minX = Math.min(...d3Nodes.map((n: any) => n.x || 0));
-  const minY = Math.min(...d3Nodes.map((n: any) => n.y || 0));
-
-  return d3Nodes.map((n: any) => {
-    const { index, vx, vy, x, y, fx, fy, ...node } = n;
-    return {
-      ...(node as ClueNode),
-      position: {
-        x: fx !== undefined ? fx : (hasSavedPositions ? x : x - minX + LAYOUT.START_X),
-        y: fy !== undefined ? fy : (hasSavedPositions ? y : y - minY + LAYOUT.START_Y),
-      }
-    };
-  });
+  return nodes.map(node => ({
+    ...node,
+    position: positions[node.id] || { x: LAYOUT.START_X, y: LAYOUT.START_Y },
+  }));
 }
 
 // Layout hint nodes separately
@@ -229,54 +235,56 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
     error: null,
   });
 
-  // Fetch clue graph
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Apply clue graph data (shared by fetch and socket push)
+  const applyClueData = useCallback((data: ClueGraphData) => {
+    if (!channelId) return;
+
+    const savedPositions = loadSavedPositions(channelId);
+
+    // Separate hint nodes from regular nodes
+    const regularNodes = data.nodes.filter((n) => n.status !== 'hint');
+    const hintNodesData = data.nodes.filter((n) => n.status === 'hint');
+
+    // Layout regular nodes
+    const positionedNodes = layoutNodes(regularNodes, data.edges, savedPositions);
+
+    // Calculate Y offset for hints
+    const maxY = positionedNodes.length > 0
+      ? Math.max(...positionedNodes.map((n) => n.position.y))
+      : LAYOUT.START_Y;
+
+    // Layout hint nodes
+    const positionedHints = layoutHints(
+      hintNodesData.map((h) => ({
+        id: h.id.replace('hint_', ''),
+        content: h.content,
+      })),
+      maxY + LAYOUT.HINT_AREA_OFFSET,
+      savedPositions
+    );
+
+    setState({
+      nodes: positionedNodes,
+      edges: data.edges,
+      hintNodes: positionedHints,
+      loading: false,
+      error: null,
+    });
+  }, [channelId]);
+
+  // Fetch clue graph (initial load only)
   const fetchClueGraph = useCallback(async () => {
     if (!channelId || !enabled) {
-      console.log('fetchClueGraph skipped:', { channelId, enabled });
       return;
     }
 
-    console.log('fetchClueGraph called for channel:', channelId);
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
       const data = await api.get<ClueGraphData>(`/channels/${channelId}/clues`);
-      console.log('fetchClueGraph response:', data);
-      const savedPositions = loadSavedPositions(channelId);
-
-      // Separate hint nodes from regular nodes
-      const regularNodes = data.nodes.filter((n) => n.status !== 'hint');
-      const hintNodesData = data.nodes.filter((n) => n.status === 'hint');
-
-      console.log('Parsed nodes:', { regularNodes: regularNodes.length, hintNodes: hintNodesData.length, edges: data.edges.length });
-
-      // Layout regular nodes
-      const positionedNodes = layoutNodes(regularNodes, data.edges, savedPositions);
-
-      // Calculate Y offset for hints
-      const maxY = positionedNodes.length > 0
-        ? Math.max(...positionedNodes.map((n) => n.position.y))
-        : LAYOUT.START_Y;
-
-      // Layout hint nodes
-      const positionedHints = layoutHints(
-        hintNodesData.map((h) => ({
-          id: h.id.replace('hint_', ''),
-          content: h.content,
-        })),
-        maxY + LAYOUT.HINT_AREA_OFFSET,
-        savedPositions
-      );
-
-      console.log('Layout complete:', { positionedNodes: positionedNodes.length, positionedHints: positionedHints.length });
-
-      setState({
-        nodes: positionedNodes,
-        edges: data.edges,
-        hintNodes: positionedHints,
-        loading: false,
-        error: null,
-      });
+      applyClueData(data);
     } catch (err) {
       const apiError = err as Error;
       console.error('fetchClueGraph error:', apiError);
@@ -286,7 +294,7 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
         error: apiError.message || '加载线索图失败',
       }));
     }
-  }, [channelId, enabled]);
+  }, [channelId, enabled, applyClueData]);
 
   // Update node position (for drag)
   const updateNodePosition = useCallback(
@@ -360,18 +368,29 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
 
     const s = connectSocket();
 
-    const handleClueGraphUpdate = (data: { channelId: string }) => {
-      if (data.channelId === channelId) {
-        fetchClueGraph();
-      }
+    const handleClueGraphUpdate = (data: { channelId: string; nodes?: ClueNode[]; edges?: ClueEdge[] }) => {
+      if (data.channelId !== channelId) return;
+
+      // Debounce: if multiple updates arrive in quick succession, only process the last one
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        if (data.nodes && data.edges) {
+          // Use pushed data directly — no need for another GET request
+          applyClueData({ nodes: data.nodes, edges: data.edges });
+        } else {
+          // Fallback: fetch if socket didn't include full data
+          fetchClueGraph();
+        }
+      }, 1500);
     };
 
     s.on('clue_graph:updated', handleClueGraphUpdate);
 
     return () => {
       s.off('clue_graph:updated', handleClueGraphUpdate);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [enabled, channelId, fetchClueGraph]);
+  }, [enabled, channelId, fetchClueGraph, applyClueData]);
 
   // Calculate canvas size based on all nodes
   const canvasSize = useMemo(() => {
@@ -387,3 +406,4 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
     addHintNode,
   };
 }
+

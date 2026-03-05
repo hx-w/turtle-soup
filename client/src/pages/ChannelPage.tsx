@@ -134,8 +134,8 @@ export default function ChannelPage() {
       handleSocketChannelEnded(truth);
       if (truth) setShowTruth(true);
     },
-    onChannelUpdated: handleSocketChannelUpdated,
     onOnlineUsersUpdate: updateOnlineUsers,
+    onChannelUpdated: handleSocketChannelUpdated,
     onNewChatMessage: (msg) => {
       if (msg.userId === user?.id) return;
       discussion.addMessage(msg);

@@ -97,9 +97,24 @@ export interface HostContribution {
   keyQuestions: number;
 }
 
+export interface TimelineBucket {
+  time: string;
+  timeLabel: string;
+  yes: number;
+  no: number;
+  partial: number;
+  irrelevant: number;
+  cumulativeYes: number;
+  cumulativeNo: number;
+  cumulativePartial: number;
+  cumulativeIrrelevant: number;
+  total: number;
+}
+
 export interface ChannelStats {
   totalQuestions: number;
   distribution: { yes: number; no: number; irrelevant: number; partial: number };
+  timelineDistribution: TimelineBucket[];
   keyQuestionCount: number;
   playerCount: number;
   hosts: { id: string; nickname: string; avatarSeed: string; role: 'creator' | 'host'; becameHostAt: string | null }[];

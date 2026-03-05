@@ -60,18 +60,9 @@ export default function LobbyPage() {
     loadChannels();
   }, [loadChannels]);
 
-  // Re-fetch when page becomes visible (e.g. returning from a channel)
-  // Silent refresh - keep existing data, update in background
-  useEffect(() => {
-    function handleVisibility() {
-      if (document.visibilityState === 'visible') {
-        // Silent refresh - don't set loading state
-        fetchChannels({ status: status || undefined, search: search || undefined, difficulty: difficulty || undefined, tag: tag || undefined, page });
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [fetchChannels, status, search, difficulty, tag, page]);
+  // Note: Removed visibilitychange listener to prevent flickering.
+  // Socket events (joinLobby/onChannelCreated) already keep channel list updated in real-time.
+  // No need to refresh on visibility change - this was causing the flicker issue.
 
   // Debounced search - reset to page 1 (triggers reload via page dependency)
   useEffect(() => {

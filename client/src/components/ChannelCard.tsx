@@ -44,6 +44,8 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
       className={`bg-card shadow-sm border border-border/40
                  p-5 text-left w-full cursor-pointer
                  hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:-translate-y-1 hover:border-border/80
+                 md:hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] md:hover:-translate-y-1 md:hover:border-border/80
+                 active:translate-y-0 md:active:-translate-y-1
                  transition-all duration-300 ease-out rounded-2xl
                  group ${isEnded ? 'opacity-70 grayscale-[20%]' : ''}`}
       aria-label={`进入房间: ${channel.title}`}

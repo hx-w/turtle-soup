@@ -46,7 +46,7 @@ function ChatBubble({
 
   if (isOwn) {
     return (
-      <div className={`flex justify-end px-4 ${grouped ? 'mt-0.5' : 'mt-3'}`}>
+      <div className={`flex justify-end px-4 ${grouped ? 'mt-1.5' : 'mt-3'}`}>
         <div className="max-w-[75%] flex flex-col items-end">
           {!grouped && (
             <span className="text-xs text-text-muted mb-1 mr-1">
@@ -64,7 +64,7 @@ function ChatBubble({
   }
 
   return (
-    <div className={`flex gap-2.5 px-4 ${grouped ? 'mt-0.5 pl-[58px]' : 'mt-3'}`}>
+    <div className={`flex gap-2.5 px-4 ${grouped ? 'mt-1.5 pl-[58px]' : 'mt-3'}`}>
       {!grouped && (
         <img
           src={avatarUrl}
@@ -76,7 +76,7 @@ function ChatBubble({
         {!grouped && (
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-medium text-text-muted">
-              {message.user.nickname}
+              @{message.user.nickname}
             </span>
             {isCreator && <RoleBadge role="creator" size="sm" />}
             <span className="text-xs text-text-muted/60">

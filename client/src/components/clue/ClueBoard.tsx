@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ZoomIn, ZoomOut, Lightbulb, CheckCircle, XCircle, PieChart, RefreshCw, Eye, Lock, X, Network } from 'lucide-react';
+import { Search, ZoomIn, ZoomOut, Lightbulb, CheckCircle2, CircleDashed, XCircle, RefreshCw, Eye, Lock, X, Network, Target } from 'lucide-react';
 
 import { useClueGraph, calculateCanvasSize, type PositionedClueNode } from '../../hooks/useClueGraph';
 import ClueNode from './ClueNode';
@@ -478,10 +478,10 @@ export default function ClueBoard({
               <div className="flex items-start gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   selectedNode.status === 'confirmed' ? 'bg-yes/20 text-yes' :
-                  selectedNode.status === 'partial' ? 'bg-orange-500/20 text-orange-500' :
-                  selectedNode.status === 'excluded' ? 'bg-no/20 text-no' :
+                  selectedNode.status === 'partial' ? 'bg-primary/20 text-primary' :
+                  selectedNode.status === 'excluded' ? 'bg-surface text-text-muted' :
                   selectedNode.status === 'hint' ? 'bg-primary/20 text-primary' :
-                  'bg-accent/20 text-accent'
+                  'bg-surface text-text-muted'
                 }`}>
                   {selectedNode.isKey && '🎯'}
                   {!selectedNode.isKey && (
@@ -497,7 +497,7 @@ export default function ClueBoard({
                       {selectedNode.category}
                     </span>
                     {selectedNode.isKey && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent font-medium">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-yes/15 text-yes font-medium">
                         关键
                       </span>
                     )}
@@ -634,10 +634,10 @@ export default function ClueBoard({
                   </div>
 
                   <div className="bg-surface/80 backdrop-blur-xl border border-border/40 p-3 rounded-xl shadow-lg pointer-events-auto text-xs flex flex-col gap-2.5 min-w-[100px]">
-                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><CheckCircle className="w-3.5 h-3.5 text-yes" /> 已确认</div>
-                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><PieChart className="w-3.5 h-3.5 text-orange-500" /> 部分</div>
-                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><XCircle className="w-3.5 h-3.5 text-no" /> 已排除</div>
-                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><Lightbulb className="w-3.5 h-3.5 text-primary" /> AI线索</div>
+                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><CheckCircle2 className="w-3.5 h-3.5 text-yes" /> 已确认</div>
+                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><CircleDashed className="w-3.5 h-3.5 text-primary" /> 部分确认</div>
+                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><XCircle className="w-3.5 h-3.5 text-text-muted" /> 已排除</div>
+                    <div className="flex items-center gap-1.5 text-text-muted font-medium"><Target className="w-3.5 h-3.5 text-yes" /> 关键线索</div>
                   </div>
                 </div>
               </div>
@@ -662,9 +662,9 @@ function ClueCard({ hint, index, isMine, isAIGenerated = false, onTogglePublic, 
   return (
     <div
       onClick={onClick}
-      className="group relative cursor-pointer transition-all duration-150 hover:translate-x-0.5"
+      className="group relative cursor-pointer transition-all duration-150 md:hover:translate-x-0.5 active:translate-x-0.5"
     >
-      <div className="flex items-start gap-3 py-2.5 px-3 border-l-2 border-transparent hover:border-primary/40 transition-colors bg-surface/50 rounded-r-lg">
+      <div className="flex items-start gap-3 py-2.5 px-3 border-l-2 border-transparent md:hover:border-primary/40 transition-colors bg-surface/50 rounded-r-lg active:border-primary/40">
         <span className="text-sm font-bold text-text/30 select-none mt-1 w-5 flex-shrink-0">
           {String(index).padStart(2, '0')}
         </span>
@@ -698,6 +698,9 @@ function ClueCard({ hint, index, isMine, isAIGenerated = false, onTogglePublic, 
                   transition-all duration-200 active:scale-95
                   touch-manipulation min-h-[32px]
                   ${hint.isPublic 
+                    ? 'bg-primary/15 text-primary border border-primary/30 md:hover:bg-primary/20 active:bg-primary/25' 
+                    : 'bg-surface text-text-muted border border-border md:hover:bg-surface/80 md:hover:text-text active:bg-surface'
+                  }
                     ? 'bg-primary/15 text-primary border border-primary/30 hover:bg-primary/20' 
                     : 'bg-surface text-text-muted border border-border hover:bg-surface/80 hover:text-text'
                   }

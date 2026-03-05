@@ -101,17 +101,27 @@ function parseAnalysisResult(text: string): RawAnalysisResult | null {
   }
 }
 
+// In-flight analysis lock to prevent duplicate concurrent analyses
+const analyzingChannels = new Set<string>();
+
 /**
  * Generate clue graph from answered questions
  */
 export async function analyzeClueGraph(channelId: string): Promise<ClueGraphData | null> {
-  const model = getModel();
-  if (!model) {
-    logger.warn('AI model not available for clue analysis');
+  // Prevent concurrent analysis for the same channel
+  if (analyzingChannels.has(channelId)) {
+    logger.info('Clue analysis already in progress, skipping', { channelId });
     return null;
   }
+  analyzingChannels.add(channelId);
 
   try {
+    const model = getModel();
+    if (!model) {
+      logger.warn('AI model not available for clue analysis');
+      return null;
+    }
+
     // Load game context
     const ctx = await loadGameContext(channelId);
 
@@ -197,6 +207,8 @@ export async function analyzeClueGraph(channelId: string): Promise<ClueGraphData
   } catch (error) {
     logger.error('Clue graph analysis failed', { channelId, error: String(error) });
     return null;
+  } finally {
+    analyzingChannels.delete(channelId);
   }
 }
 

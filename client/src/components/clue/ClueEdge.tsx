@@ -6,79 +6,82 @@ interface ClueEdgeProps {
   targetPos: { x: number; y: number };
 }
 
+// Clean styles using design tokens — no orange
 const relationStyles = {
   temporal: {
-    dashArray: '5,5',
-    color: 'rgb(var(--color-primary))',
-    label: '时间',
+    dashArray: '6,4',
+    color: 'rgb(var(--color-text-muted))',
+    opacity: 0.45,
   },
   causal: {
     dashArray: '',
     color: 'rgb(var(--color-primary))',
-    label: '因果',
+    opacity: 0.5,
   },
   contradictory: {
-    dashArray: '2,4',
+    dashArray: '3,5',
     color: 'rgb(var(--color-no))',
-    label: '矛盾',
+    opacity: 0.45,
   },
   related: {
-    dashArray: '1,3',
+    dashArray: '2,4',
     color: 'rgb(var(--color-text-muted))',
-    label: '相关',
+    opacity: 0.35,
   },
+};
+
+const relationLabels: Record<string, string> = {
+  temporal: '时间',
+  causal: '因果',
+  contradictory: '矛盾',
+  related: '相关',
 };
 
 export default function ClueEdge({ edge, sourcePos, targetPos }: ClueEdgeProps) {
   const style = relationStyles[edge.relation];
-  
-  // Calculate path
-  // Node center offset (approximate node size due to varying text length)
-  const nodeOffsetX = 100; // Half of approximate node max-width (200px / 2)
-  const nodeOffsetY = 50; // Half of approximate node min-height
-  
+
+  // Node center offset
+  const nodeOffsetX = 100;
+  const nodeOffsetY = 40;
+
   const startX = sourcePos.x + nodeOffsetX;
   const startY = sourcePos.y + nodeOffsetY;
   const endX = targetPos.x + nodeOffsetX;
   const endY = targetPos.y + nodeOffsetY;
-  
-  // Calculate control points for a curved line
+
+  // Smooth curved path
   const midX = (startX + endX) / 2;
   const midY = (startY + endY) / 2;
-  
-  // Adjust curve based on direction
+
   const dx = endX - startX;
   const dy = endY - startY;
-  const curve = Math.min(Math.abs(dx), Math.abs(dy)) * 0.2;
-  
+  const curve = Math.min(Math.abs(dx), Math.abs(dy)) * 0.15;
+
   const path = `M ${startX} ${startY} Q ${midX + curve} ${midY - curve} ${endX} ${endY}`;
-  
-  // Calculate label position
+
+  // Label position
   const labelX = midX;
   const labelY = midY - 8;
-  
+
   return (
     <g>
-      {/* Main line */}
       <path
         d={path}
         fill="none"
         stroke={style.color}
-        strokeWidth={1.5}
+        strokeWidth={1.2}
         strokeDasharray={style.dashArray}
-        markerEnd="url(#arrowhead)"
-        className="transition-all duration-300"
-        opacity={0.7}
+        opacity={style.opacity}
+        strokeLinecap="round"
       />
-      
-      {/* Label (if has description) */}
+
       {edge.description && (
         <g transform={`translate(${labelX}, ${labelY})`}>
           <rect
-            x={-20}
-            y={-8}
-            width={40}
-            height={16}
+            x={-18}
+            y={-7}
+            width={36}
+            height={14}
             fill="rgb(var(--color-card))"
             rx={4}
             opacity={0.9}
@@ -89,8 +92,9 @@ export default function ClueEdge({ edge, sourcePos, targetPos }: ClueEdgeProps) 
             fontSize={9}
             fill="rgb(var(--color-text-muted))"
             className="pointer-events-none select-none"
+            fontWeight={500}
           >
-            {style.label}
+            {relationLabels[edge.relation] || '相关'}
           </text>
         </g>
       )}
