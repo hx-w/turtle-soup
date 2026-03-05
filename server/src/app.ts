@@ -6,6 +6,7 @@ import authRouter from './routes/auth';
 import channelsRouter from './routes/channels';
 import usersRouter from './routes/users';
 import aiRouter from './routes/ai';
+import creationSessionsRouter from './routes/creation-sessions';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/channels', apiLimiter, channelsRouter);
 app.use('/api/users', apiLimiter, usersRouter);
 app.use('/api/ai', apiLimiter, aiRouter);
+app.use('/api/creation-sessions', apiLimiter, creationSessionsRouter);
 
 // Central error handler
 app.use(errorHandler);

@@ -9,6 +9,7 @@ import CreatePage from './pages/CreatePage';
 import ChannelPage from './pages/ChannelPage';
 import ProfilePage from './pages/ProfilePage';
 import ArchivePage from './pages/ArchivePage';
+import CreationAssistantPage from './pages/CreationAssistantPage';
 import { useAuthStore } from './stores/authStore';
 
 export default function App() {
@@ -40,6 +41,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <CreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/create/assistant"
+          element={
+            <ProtectedRoute>
+              <CreationAssistantPage />
             </ProtectedRoute>
           }
         />

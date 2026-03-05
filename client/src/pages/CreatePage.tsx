@@ -10,11 +10,13 @@ import {
   Soup,
   Plus,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 import type { Channel } from '../types';
 import AiSettingsPanel from '../components/ai/AiSettingsPanel';
+import { useToastStore } from '../stores/toastStore';
 
 const difficultyOptions = [
   { value: 'easy', label: '简单' },
@@ -49,6 +51,27 @@ export default function CreatePage() {
     api.get<{ available: boolean }>('/ai/status')
       .then((data) => setAiAvailable(data.available))
       .catch(() => setAiAvailable(false));
+  }, []);
+
+  // Load draft from AI assistant
+  useEffect(() => {
+    const draft = localStorage.getItem('creationDraft');
+    if (draft) {
+      try {
+        const story = JSON.parse(draft);
+        if (story.surface) setSurface(story.surface);
+        if (story.truth) setTruth(story.truth);
+        if (story.tags) setTags(story.tags);
+        if (story.difficulty) setDifficulty(story.difficulty);
+
+        localStorage.removeItem('creationDraft');
+
+        // Show toast
+        useToastStore.getState().addToast('已应用AI生成的海龟汤，可继续编辑', 'success');
+      } catch (e) {
+        console.error('Failed to parse draft:', e);
+      }
+    }
   }, []);
 
   const toggleTag = (tag: string) => {
@@ -103,14 +126,29 @@ export default function CreatePage() {
       >
         <div className="glass-card p-6 sm:p-8">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Soup size={20} className="text-primary" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                <Soup size={20} className="text-primary" />
+              </div>
+              <div>
+                <h1 className="font-heading font-bold text-xl">创建海龟汤</h1>
+                <p className="text-text-muted text-sm">编写你的文字思考谜题</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-heading font-bold text-xl">创建海龟汤</h1>
-              <p className="text-text-muted text-sm">编写你的文字思考谜题</p>
-            </div>
+
+            {/* AI Assistant Entry — compact button */}
+            {aiAvailable && (
+              <button
+                onClick={() => navigate('/create/assistant')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm
+                         bg-accent/10 border border-accent/20 text-accent
+                         hover:bg-accent/20 hover:border-accent/30 transition-all duration-200 cursor-pointer"
+              >
+                <Sparkles size={14} />
+                <span>AI助手</span>
+              </button>
+            )}
           </div>
 
           {/* Error */}
@@ -150,7 +188,7 @@ export default function CreatePage() {
                 className="flex items-center gap-2 text-sm font-medium text-text-muted mb-1.5"
               >
                 <FileText size={14} />
-                谜面 -- 玩家能看到的故事
+                谜面 — 玩家能看到的故事
               </label>
               <textarea
                 id="surface"
@@ -174,7 +212,7 @@ export default function CreatePage() {
                 className="flex items-center gap-2 text-sm font-medium text-text-muted mb-1.5"
               >
                 <Lock size={14} />
-                谜底 -- 只有主持人能看到
+                谜底 — 只有主持人能看到
               </label>
               <textarea
                 id="truth"

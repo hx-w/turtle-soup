@@ -13,6 +13,12 @@ const envSchema = z.object({
   AI_API_KEY: z.string().optional(),
   AI_MODEL: z.string().optional(),
   AI_REQUEST_TIMEOUT: z.coerce.number().default(15000),
+  
+  // Creation AI configuration (optional, falls back to AI_*)
+  CREATION_AI_PROVIDER: z.string().optional(),
+  CREATION_AI_BASE_URL: z.string().optional(),
+  CREATION_AI_API_KEY: z.string().optional(),
+  CREATION_AI_MODEL: z.string().optional(),
 });
 
 function loadEnv() {

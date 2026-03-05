@@ -71,6 +71,7 @@ model User {
   chatMessages    ChatMessage[]
   timelineEvents  TimelineEvent[]
   aiHints         AiHint[]
+  creationSession CreationSession?
 }
 
 model InviteCode {
@@ -214,4 +215,17 @@ model ClueGraph {
   updatedAt     DateTime @updatedAt
 
   @@index([channelId])
+}
+
+model CreationSession {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  messages    Json     @default("[]")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
 }

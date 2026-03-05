@@ -167,4 +167,36 @@
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  /* Apple-style buttons */
+  .btn-apply-primary {
+    @apply px-4 py-2 rounded-xl text-sm font-medium text-white bg-yes
+           transition-colors duration-150 cursor-pointer;
+  }
+
+  .btn-apply-secondary {
+    @apply px-4 py-2 rounded-xl text-sm font-medium
+           border-2 border-yes text-yes
+           transition-colors duration-150 cursor-pointer;
+  }
+}
+
+    /* Hover effects only on devices that support hover */
+  @media (hover: hover) {
+  .btn-apply-primary:hover {
+    background-color: rgb(95 184 150);
+  }
+
+  .btn-apply-secondary:hover {
+    @apply bg-yes text-white;
+  }
+  }
+
+      /* Active state for mobile */
+    .btn-apply-primary:active {
+  background-color: rgb(77 168 132);
+}
+
+    .btn-apply-secondary:active {
+  @apply bg-yes text-white;
 }
