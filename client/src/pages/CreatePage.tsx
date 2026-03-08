@@ -42,7 +42,7 @@ export default function CreatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(false);
   const [aiHostEnabled, setAiHostEnabled] = useState(true);
-  const [aiHostDelayMinutes, setAiHostDelayMinutes] = useState(1);
+  const [aiHostDelaySeconds, setAiHostDelaySeconds] = useState(60);
   const [aiHintEnabled, setAiHintEnabled] = useState(true);
   const [aiHintPerPlayer, setAiHintPerPlayer] = useState(3);
   const [customTagInput, setCustomTagInput] = useState('');
@@ -105,10 +105,10 @@ export default function CreatePage() {
         difficulty,
         tags,
         aiHostEnabled,
-        aiHostDelayMinutes,
+        aiHostDelaySeconds,
         aiHintEnabled,
         aiHintPerPlayer,
-      });
+
       navigate(`/channel/${channel.id}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建失败');
@@ -355,13 +355,13 @@ export default function CreatePage() {
             <AiSettingsPanel
               aiAvailable={aiAvailable}
               aiHostEnabled={aiHostEnabled}
-              aiHostDelayMinutes={aiHostDelayMinutes}
+              aiHostDelaySeconds={aiHostDelaySeconds}
               aiHintEnabled={aiHintEnabled}
               aiHintPerPlayer={aiHintPerPlayer}
               onChange={(field, value) => {
                 switch (field) {
                   case 'aiHostEnabled': setAiHostEnabled(value as boolean); break;
-                  case 'aiHostDelayMinutes': setAiHostDelayMinutes(value as number); break;
+                  case 'aiHostDelaySeconds': setAiHostDelaySeconds(value as number); break;
                   case 'aiHintEnabled': setAiHintEnabled(value as boolean); break;
                   case 'aiHintPerPlayer': setAiHintPerPlayer(value as number); break;
                 }

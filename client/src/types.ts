@@ -55,7 +55,7 @@ export interface Channel {
   questions?: Question[];
   _count?: { members: number; questions: number };
   aiHostEnabled: boolean;
-  aiHostDelayMinutes: number;
+  aiHostDelaySeconds: number;
   aiHintEnabled: boolean;
   aiHintPerPlayer: number;
   aiReview: string | null;

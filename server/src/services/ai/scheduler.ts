@@ -123,15 +123,16 @@ export async function recoverPendingQuestions(): Promise<void> {
       status: 'pending',
       channel: { aiHostEnabled: true, status: 'active' },
     },
-    include: { channel: { select: { id: true, aiHostDelayMinutes: true } } },
+    include: { channel: { select: { id: true, aiHostDelaySeconds: true } } },
   });
 
   for (const q of pendingQuestions) {
     const elapsed = Date.now() - q.createdAt.getTime();
-    const delay = q.channel.aiHostDelayMinutes * 60 * 1000;
+    const delay = q.channel.aiHostDelaySeconds * 1000;
     const remaining = Math.max(delay - elapsed, 0);
     scheduleAiAnswer(q.id, q.channel.id, remaining);
   }
+
 
   if (pendingQuestions.length > 0) {
     logger.info(`Recovered ${pendingQuestions.length} pending AI answer timers`);

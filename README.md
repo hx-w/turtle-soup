@@ -80,10 +80,26 @@ turtle-soup/
 │   ├── src/socket.ts  # WebSocket 事件
 │   ├── prisma/      # 数据库 Schema
 │   └── tests/       # API 测试
-├── docker-compose.yml
-├── Dockerfile       # 多阶段构建
-└── nginx.conf.example
 ```
+
+## 更新升级
+
+```bash
+git pull
+docker compose build --no-cache && docker compose up -d
+```
+
+容器启动时会自动检测并迁移数据库，无需手动操作。
+## 更新升级
+
+```bash
+git pull
+docker compose build --no-cache && docker compose up -d
+```
+
+容器启动时会自动检测并迁移数据库，无需手动操作。
+
+---
 
 ## 开发
 

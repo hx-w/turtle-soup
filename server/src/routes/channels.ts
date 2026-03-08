@@ -25,9 +25,8 @@ const createSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard', 'hell']).default('medium'),
   tags: z.array(z.string().min(1).max(10)).max(5).default([]),
   aiHostEnabled: z.boolean().default(false),
-  aiHostDelayMinutes: z.number().int().min(1).max(30).default(1),
+  aiHostDelaySeconds: z.number().int().min(20).max(180).default(60),
   aiHintEnabled: z.boolean().default(false),
-  aiHintPerPlayer: z.number().int().min(1).max(10).default(3),
 });
 
 const answerSchema = z.object({
@@ -340,7 +339,7 @@ router.post('/:id/questions', authRequired, validate(questionSchema), async (req
 
     // Schedule AI auto-answer if enabled
     if (channel.aiHostEnabled) {
-      scheduleAiAnswer(question.id, channelId, channel.aiHostDelayMinutes * 60 * 1000);
+      scheduleAiAnswer(question.id, channelId, channel.aiHostDelaySeconds * 1000);
     }
 
     res.json(question);

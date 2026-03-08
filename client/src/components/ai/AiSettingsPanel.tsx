@@ -1,21 +1,26 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Bot, Lightbulb, AlertCircle } from 'lucide-react';
-import StepperInput from '../StepperInput';
 
 interface AiSettingsPanelProps {
   aiAvailable: boolean;
   aiHostEnabled: boolean;
-  aiHostDelayMinutes: number;
+  aiHostDelaySeconds: number;
   aiHintEnabled: boolean;
   aiHintPerPlayer: number;
   onChange: (field: string, value: boolean | number) => void;
 }
 
+const delayOptions = [
+  { value: 20, label: '20 秒' },
+  { value: 60, label: '1 分钟' },
+  { value: 180, label: '3 分钟' },
+] as const;
+
 export default function AiSettingsPanel({
   aiAvailable,
   aiHostEnabled,
-  aiHostDelayMinutes,
+  aiHostDelaySeconds,
   aiHintEnabled,
   aiHintPerPlayer,
   onChange,
@@ -92,13 +97,17 @@ export default function AiSettingsPanel({
                       <div className="pt-2 space-y-1">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-text-muted">超时时间</span>
-                          <StepperInput
-                            value={aiHostDelayMinutes}
-                            min={1}
-                            max={30}
-                            suffix="分钟"
-                            onChange={(v) => onChange('aiHostDelayMinutes', v)}
-                          />
+                          <select
+                            value={aiHostDelaySeconds}
+                            onChange={(e) => onChange('aiHostDelaySeconds', Number(e.target.value))}
+                            className="input-field !py-1.5 !px-2 text-sm w-28 cursor-pointer"
+                          >
+                            {delayOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <p className="text-xs text-text-muted/70">
                           问题无人回答后 AI 自动接管
@@ -144,13 +153,31 @@ export default function AiSettingsPanel({
                       <div className="pt-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-text-muted">每人线索次数</span>
-                          <StepperInput
-                            value={aiHintPerPlayer}
-                            min={1}
-                            max={10}
-                            suffix="次"
-                            onChange={(v) => onChange('aiHintPerPlayer', v)}
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => aiHintPerPlayer > 1 && onChange('aiHintPerPlayer', aiHintPerPlayer - 1)}
+                              disabled={aiHintPerPlayer <= 1}
+                              className="w-6 h-6 flex items-center justify-center rounded-md border border-border
+                                       text-text-muted hover:bg-surface cursor-pointer
+                                       disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                              −
+                            </button>
+                            <span className="min-w-[2.5rem] text-center text-sm font-medium text-text">
+                              {aiHintPerPlayer} 次
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => aiHintPerPlayer < 10 && onChange('aiHintPerPlayer', aiHintPerPlayer + 1)}
+                              disabled={aiHintPerPlayer >= 10}
+                              className="w-6 h-6 flex items-center justify-center rounded-md border border-border
+                                       text-text-muted hover:bg-surface cursor-pointer
+                                       disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </motion.div>

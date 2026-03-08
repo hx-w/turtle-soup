@@ -103,7 +103,7 @@ model Channel {
 
   // AI 设置
   aiHostEnabled       Boolean   @default(false)
-  aiHostDelayMinutes  Int       @default(1)
+  aiHostDelaySeconds  Int       @default(60)  // 可选：20秒/1分钟/3分钟
   aiHintEnabled       Boolean   @default(false)
   aiHintPerPlayer     Int       @default(3)
   aiReview            String?
