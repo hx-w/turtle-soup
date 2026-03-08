@@ -108,7 +108,9 @@ export default function CreatePage() {
         aiHostDelaySeconds,
         aiHintEnabled,
         aiHintPerPlayer,
+      });
 
+      navigate(`/channel/${channel.id}`, { replace: true });
       navigate(`/channel/${channel.id}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建失败');
