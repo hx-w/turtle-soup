@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import { REACTION_EMOJIS } from '../../lib/emojis';
 
 interface EmojiReactionPopoverProps {
@@ -22,11 +23,11 @@ export default function EmojiReactionPopover({
   selectedBubbleEmoji,
 }: EmojiReactionPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ top: number; left: number; direction: 'up' | 'down' }>({
+  const [position, setPosition] = useState<{ top: number; left: number }>({
     top: 0,
     left: 0,
-    direction: 'down',
   });
+  const [direction, setDirection] = useState<'up' | 'down'>('down');
 
   const calcPosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -39,10 +40,11 @@ export default function EmojiReactionPopover({
 
     const spaceBelow = window.innerHeight - anchorRect.bottom;
     const spaceAbove = anchorRect.top;
-    const direction = spaceBelow >= popoverHeight + 8 ? 'down' : spaceAbove >= popoverHeight + 8 ? 'up' : 'down';
+    const dir = spaceBelow >= popoverHeight + 8 ? 'down' : spaceAbove >= popoverHeight + 8 ? 'up' : 'down';
+    setDirection(dir);
 
     let top: number;
-    if (direction === 'down') {
+    if (dir === 'down') {
       top = anchorRect.bottom + 8;
     } else {
       top = anchorRect.top - popoverHeight - 8;
@@ -51,12 +53,11 @@ export default function EmojiReactionPopover({
     let left = anchorRect.left + anchorRect.width / 2 - popoverWidth / 2;
     left = Math.max(8, Math.min(left, window.innerWidth - popoverWidth - 8));
 
-    setPosition({ top, left, direction });
+    setPosition({ top, left });
   }, [anchorRef]);
 
   useEffect(() => {
     if (!isOpen) return;
-    // Defer position calculation so the popover is rendered and measurable
     requestAnimationFrame(calcPosition);
   }, [isOpen, calcPosition]);
 
@@ -69,8 +70,12 @@ export default function EmojiReactionPopover({
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    // Defer to avoid closing immediately on open
+    const timer = setTimeout(() => document.addEventListener('mousedown', handleClickOutside), 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -80,16 +85,22 @@ export default function EmojiReactionPopover({
     : undefined;
 
   return createPortal(
-    <div
+    <motion.div
       ref={popoverRef}
-      className="fixed z-50 bg-card border border-border rounded-xl shadow-xl p-3 w-72"
-      style={{ top: position.top, left: position.left }}
+      initial={{ opacity: 0, scale: 0.95, y: direction === 'down' ? -4 : 4 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      style={{ top: position.top, left: position.left, transformOrigin: `center ${direction === 'down' ? 'top' : 'bottom'}` }}
+      className="fixed z-[9999] bg-card/90 backdrop-blur-xl border border-border rounded-xl
+        shadow-lg shadow-black/10 dark:shadow-black/40 p-3 w-72"
     >
-      {/* User list for the selected bubble emoji */}
+      {/* 谁点了这个 emoji */}
       {filteredUsers && filteredUsers.length > 0 && (
         <div className="mb-2 pb-2 border-b border-border">
-          <div className="text-xs text-text-muted mb-1.5">
-            {selectedBubbleEmoji} 的反应
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-lg leading-none">{selectedBubbleEmoji}</span>
+            <span className="text-xs text-text-muted">{filteredUsers.length} 人</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {filteredUsers.map((u) => (
@@ -100,7 +111,7 @@ export default function EmojiReactionPopover({
                 <img
                   src={`https://api.dicebear.com/7.x/thumbs/svg?seed=${u.avatarSeed}`}
                   alt={u.nickname}
-                  className="w-4 h-4 rounded-full"
+                  className="w-4 h-4 rounded-full bg-surface"
                 />
                 <span className="truncate max-w-[80px]">{u.nickname}</span>
               </div>
@@ -109,7 +120,7 @@ export default function EmojiReactionPopover({
         </div>
       )}
 
-      {/* Emoji grid */}
+      {/* Emoji 网格 */}
       <div className="grid grid-cols-8 gap-0.5">
         {REACTION_EMOJIS.map((emoji) => (
           <button
@@ -120,17 +131,18 @@ export default function EmojiReactionPopover({
               onClose();
             }}
             className={`w-8 h-8 flex items-center justify-center rounded-lg text-lg
-              cursor-pointer transition-colors
+              cursor-pointer transition-all duration-150
+              active:scale-90 touch-manipulation
               ${currentEmoji === emoji
                 ? 'bg-primary/20 ring-1 ring-primary/40'
-                : 'hover:bg-surface'
+                : 'hover:bg-surface active:bg-surface-hover'
               }`}
           >
             {emoji}
           </button>
         ))}
       </div>
-    </div>,
+    </motion.div>,
     document.body,
   );
 }

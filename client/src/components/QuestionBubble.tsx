@@ -77,13 +77,24 @@ export default function QuestionBubble({
   const bubbleRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [pickerAnchor, setPickerAnchor] = useState<React.RefObject<HTMLElement | null>>(addBtnRef);
 
+  const [showAllReactions, setShowAllReactions] = useState(false);
+  const MAX_VISIBLE_REACTIONS = 5;
+
   const aggregatedReactions = useMemo(() => {
     const map = new Map<string, number>();
     (question.reactions || []).forEach((r) => {
       map.set(r.emoji, (map.get(r.emoji) || 0) + 1);
     });
-    return Array.from(map.entries()).map(([emoji, count]) => ({ emoji, count }));
+    // 按数量降序排列，相同数量按 emoji 出现顺序
+    return Array.from(map.entries())
+      .map(([emoji, count]) => ({ emoji, count }))
+      .sort((a, b) => b.count - a.count);
   }, [question.reactions]);
+
+  const visibleReactions = showAllReactions
+    ? aggregatedReactions
+    : aggregatedReactions.slice(0, MAX_VISIBLE_REACTIONS);
+  const hiddenCount = aggregatedReactions.length - MAX_VISIBLE_REACTIONS;
 
   const myReaction = useMemo(
     () => (question.reactions || []).find((r) => r.userId === currentUserId)?.emoji,
@@ -330,33 +341,65 @@ export default function QuestionBubble({
         {/* Emoji Reactions */}
         {(aggregatedReactions.length > 0 || (onReaction && !isPending)) && (
           <div className="flex items-center gap-1 mt-2 flex-wrap">
-            {aggregatedReactions.map(({ emoji, count }) => (
+            <AnimatePresence mode="popLayout">
+              {visibleReactions.map(({ emoji, count }) => (
+                <motion.button
+                  key={emoji}
+                  ref={(el) => { bubbleRefs.current[emoji] = el; }}
+                  type="button"
+                  layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handleBubbleClick(emoji)}
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs
+                    transition-colors cursor-pointer touch-manipulation
+                    ${myReaction === emoji
+                      ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
+                      : 'bg-surface hover:bg-surface-hover text-text-secondary'
+                    }`}
+                >
+                  <span className="text-sm leading-none">{emoji}</span>
+                  <span>{count}</span>
+                </motion.button>
+              ))}
+            </AnimatePresence>
+            {!showAllReactions && hiddenCount > 0 && (
               <button
-                key={emoji}
-                ref={(el) => { bubbleRefs.current[emoji] = el; }}
                 type="button"
-                onClick={() => handleBubbleClick(emoji)}
-                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs
-                  transition-colors cursor-pointer
-                  ${myReaction === emoji
-                    ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
-                    : 'bg-surface hover:bg-surface-hover text-text-secondary'
-                  }`}
+                onClick={() => setShowAllReactions(true)}
+                className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs
+                  bg-surface hover:bg-surface-hover text-text-muted cursor-pointer
+                  transition-colors touch-manipulation active:scale-95"
               >
-                <span className="text-sm">{emoji}</span>
-                <span>{count}</span>
+                +{hiddenCount}
               </button>
-            ))}
-            {onReaction && (
+            )}
+            {showAllReactions && hiddenCount > 0 && (
               <button
+                type="button"
+                onClick={() => setShowAllReactions(false)}
+                className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs
+                  bg-surface hover:bg-surface-hover text-text-muted cursor-pointer
+                  transition-colors touch-manipulation active:scale-95"
+              >
+                收起
+              </button>
+            )}
+            {onReaction && (
+              <motion.button
                 ref={addBtnRef}
                 type="button"
+                whileTap={{ scale: 0.9 }}
                 onClick={handleAddClick}
                 className="inline-flex items-center justify-center w-6 h-6 rounded-full
-                  bg-surface hover:bg-surface-hover text-text-muted cursor-pointer transition-colors"
+                  bg-surface hover:bg-surface-hover text-text-muted cursor-pointer
+                  transition-colors touch-manipulation"
               >
                 <SmilePlus className="w-3.5 h-3.5" />
-              </button>
+              </motion.button>
             )}
           </div>
         )}
