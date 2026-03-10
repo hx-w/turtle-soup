@@ -269,13 +269,14 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
       savedPositions
     );
 
-    setState({
+    setState((prev) => ({
+      ...prev,
       nodes: positionedNodes,
       edges: data.edges,
       hintNodes: positionedHints,
       loading: false,
       error: null,
-    });
+    }));
   }, [channelId]);
 
   // Fetch clue graph (initial load only)
