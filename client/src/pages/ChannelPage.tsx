@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { api } from '../lib/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, AlertTriangle, HelpCircle, ArrowUp, ArrowDown } from 'lucide-react';
 import ClueBoard from '../components/clue/ClueBoard';
+import { useClueGraph } from '../hooks/useClueGraph';
 import { toast } from '../stores/toastStore';
 import { useAuthStore } from '../stores/authStore';
 import { useChannelData } from '../hooks/useChannelData';
@@ -40,6 +42,7 @@ export default function ChannelPage() {
     handleSocketRoleChanged, handleSocketChannelEnded, updateOnlineUsers,
     handleEditSoup,
     handleSocketChannelUpdated,
+    updateQuestionReactions,
     aiProgress, aiReview, setAiReview, aiReviewLoading, setAiReviewLoading,
     hints, hintRemaining, hintLoading,
     handleAiCorrect, handleRequestHint, handleToggleHintPublic, loadHints,
@@ -49,8 +52,10 @@ export default function ChannelPage() {
   } = useChannelData(channelId, user);
 
   const discussion = useDiscussion(channelId);
+  const clueGraph = useClueGraph({ channelId, enabled: !!channelId });
 
   const [activeTab, setActiveTab] = useState<TabKey>('qa');
+  const [localUnreadCount, setLocalUnreadCount] = useState(0);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [showTruth, setShowTruth] = useState(false);
@@ -101,6 +106,12 @@ export default function ChannelPage() {
     checkScrollState();
   }, [questions.length, checkScrollState, activeTab]);
 
+  useEffect(() => {
+    if (channel?.unreadChatCount !== undefined) {
+      setLocalUnreadCount(channel.unreadChatCount);
+    }
+  }, [channel?.unreadChatCount]);
+
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
@@ -113,7 +124,8 @@ export default function ChannelPage() {
     (tab: TabKey) => {
       setActiveTab(tab);
       if (tab === 'discussion') {
-        discussion.resetUnread();
+        setLocalUnreadCount(0);
+        discussion.markAsRead();
         if (!discussion.initialLoaded) {
           discussion.fetchMessages();
         }
@@ -140,8 +152,11 @@ export default function ChannelPage() {
       if (msg.userId === user?.id) return;
       discussion.addMessage(msg);
       if (activeTab !== 'discussion') {
-        discussion.incrementUnread();
+        setLocalUnreadCount((c) => c + 1);
       }
+    },
+    onReactionUpdated: (data) => {
+      updateQuestionReactions(data.questionId, data.reactions);
     },
     onAiAnswered: handleSocketAiAnswered,
     onAiCorrected: handleSocketAiCorrected,
@@ -158,6 +173,16 @@ export default function ChannelPage() {
       }
     },
   });
+
+  const handleReaction = useCallback(async (questionId: string, emoji: string) => {
+    if (!channelId) return;
+    await api.put(`/channels/${channelId}/questions/${questionId}/reaction`, { emoji });
+  }, [channelId]);
+
+  const handleRemoveReaction = useCallback(async (questionId: string) => {
+    if (!channelId) return;
+    await api.del(`/channels/${channelId}/questions/${questionId}/reaction`);
+  }, [channelId]);
 
   async function onSubmitQuestion() {
     if (!questionText.trim() || submitting || !channelId || hasPending) return;
@@ -274,9 +299,9 @@ export default function ChannelPage() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         answeredCount={answeredCount}
-        unreadCount={discussion.unreadCount}
+        unreadCount={localUnreadCount}
         hintsCount={hints.length}
-        aiHintEnabled={channel.aiHintEnabled}
+        clueGraphError={!!clueGraph?.lastError}
       />
 
 
@@ -290,6 +315,7 @@ export default function ChannelPage() {
           channelEnded={channelEnded}
           onRequestHint={handleRequestHint}
           onTogglePublic={handleToggleHintPublic}
+          lastError={clueGraph?.lastError}
         />
       ) : activeTab === 'qa' ? (
         <div className="flex flex-col pb-20">
@@ -312,6 +338,8 @@ export default function ChannelPage() {
                   onWithdraw={isActive ? handleWithdraw : undefined}
                   onAnswer={isActive && isHostOrCreator ? handleAnswer : undefined}
                   onAiCorrect={isHostOrCreator ? handleAiCorrect : undefined}
+                  onReaction={handleReaction}
+                  onRemoveReaction={handleRemoveReaction}
                 />
               ))}
           </div>

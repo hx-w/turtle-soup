@@ -36,6 +36,16 @@ export interface Question {
   answerer?: { id: string; nickname: string } | null;
   isAiAnswered: boolean;
   aiReasoning?: string | null;
+  reactions?: QuestionReaction[];
+}
+
+export interface QuestionReaction {
+  id: string;
+  questionId: string;
+  userId: string;
+  emoji: string;
+  createdAt: string;
+  user: { id: string; nickname: string; avatarSeed: string };
 }
 
 export interface Channel {
@@ -54,6 +64,7 @@ export interface Channel {
   members?: ChannelMember[];
   questions?: Question[];
   _count?: { members: number; questions: number };
+  unreadChatCount?: number;
   aiHostEnabled: boolean;
   aiHostDelaySeconds: number;
   aiHintEnabled: boolean;
@@ -237,6 +248,8 @@ export interface ClueEdge {
 export interface ClueGraphData {
   nodes: ClueNode[];
   edges: ClueEdge[];
+  lastError?: string | null;
+  lastErrorAt?: string | null;
 }
 
 export interface ApiError {

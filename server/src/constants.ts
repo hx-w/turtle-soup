@@ -24,4 +24,5 @@ export const SocketEvents = {
   PROGRESS_UPDATED: 'progress:updated',
   AI_REVIEW_READY: 'ai:review_ready',
   CLUE_GRAPH_UPDATED: 'clue_graph:updated',
+  QUESTION_REACTION_UPDATED: 'question:reaction_updated',
 } as const;

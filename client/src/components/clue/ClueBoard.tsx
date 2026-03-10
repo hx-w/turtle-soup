@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ZoomIn, ZoomOut, Lightbulb, CheckCircle2, CircleDashed, XCircle, RefreshCw, Eye, Lock, X, Network, Target } from 'lucide-react';
+import { Search, ZoomIn, ZoomOut, Lightbulb, CheckCircle2, CircleDashed, XCircle, RefreshCw, Eye, Lock, X, Network, Target, AlertTriangle } from 'lucide-react';
 
 import { useClueGraph, calculateCanvasSize, type PositionedClueNode } from '../../hooks/useClueGraph';
 import ClueNode from './ClueNode';
@@ -16,6 +16,7 @@ interface ClueBoardProps {
   channelEnded: boolean;
   onRequestHint: () => void;
   onTogglePublic: (hintId: string, isPublic: boolean) => void;
+  lastError?: string | null;
 }
 
 export default function ClueBoard({
@@ -27,6 +28,7 @@ export default function ClueBoard({
   channelEnded,
   onRequestHint,
   onTogglePublic,
+  lastError,
 }: ClueBoardProps) {
   const {
     nodes,
@@ -290,6 +292,12 @@ export default function ClueBoard({
   return (
     <>
       <div className="flex-1 flex flex-col overflow-auto pb-20">
+        {lastError && (
+          <div className="mx-4 mt-2 px-3 py-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0" />
+            <span className="text-xs text-text-muted">图谱生成暂时遇到问题，可点击刷新重试</span>
+          </div>
+        )}
         <div className="flex-1 px-4 py-6 space-y-6">
           <div className="mb-6">
             <h3 className="text-lg font-bold text-text/90 select-none">

@@ -221,6 +221,11 @@ router.get('/:id', authRequired, async (req: Request, res: Response) => {
           include: {
             asker: { select: { id: true, nickname: true, avatarSeed: true } },
             answerer: { select: { id: true, nickname: true } },
+            reactions: {
+              include: {
+                user: { select: { id: true, nickname: true, avatarSeed: true } },
+              },
+            },
           },
         },
       },
@@ -235,6 +240,18 @@ router.get('/:id', authRequired, async (req: Request, res: Response) => {
     const member = channel.members.find(m => m.userId === req.user!.userId);
     const isHostOrCreator = member?.role === 'host' || member?.role === 'creator';
 
+    // 计算未读讨论消息数
+    let unreadChatCount = 0;
+    if (member && member.lastReadChatAt) {
+      unreadChatCount = await prisma.chatMessage.count({
+        where: {
+          channelId: req.params.id,
+          userId: { not: req.user!.userId },
+          createdAt: { gt: member.lastReadChatAt },
+        },
+      });
+    }
+
     // Strip aiReasoning for non-hosts
     if (!isHostOrCreator) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -246,11 +263,11 @@ router.get('/:id', authRequired, async (req: Request, res: Response) => {
 
     if (!isHostOrCreator && channel.status === 'active') {
       const { truth: _truth, ...channelWithoutTruth } = channel;
-      res.json(channelWithoutTruth);
+      res.json({ ...channelWithoutTruth, unreadChatCount });
       return;
     }
 
-    res.json(channel);
+    res.json({ ...channel, unreadChatCount });
   } catch (err) {
     logger.error('Channel detail fetch failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });
@@ -407,17 +424,17 @@ router.put('/:id/questions/:qid/answer', authRequired, validate(answerSchema), a
         const io = getIO();
         io.to(channelId).emit(SocketEvents.PROGRESS_UPDATED, { channelId, progress });
       });
+    }
 
-      // Async clue graph analysis (only if AI hints enabled and answer is relevant)
-      if (channel.aiHintEnabled && answer !== 'irrelevant') {
-        shouldReanalyze(channelId).then((needAnalyze) => {
-          if (needAnalyze) {
-            analyzeClueGraph(channelId).catch((err) => {
-              logger.warn('Clue graph analysis failed', { channelId, error: String(err) });
-            });
-          }
-        });
-      }
+    // 知识图谱分析独立于 AI 线索功能
+    if (channel && channel.status === 'active' && answer !== 'irrelevant') {
+      shouldReanalyze(channelId).then((needAnalyze) => {
+        if (needAnalyze) {
+          analyzeClueGraph(channelId).catch((err) => {
+            logger.warn('Clue graph analysis failed', { channelId, error: String(err) });
+          });
+        }
+      });
     }
     if (channel && channel.maxQuestions > 0) {
       const answeredCount = await prisma.question.count({
@@ -458,6 +475,96 @@ router.put('/:id/questions/:qid/withdraw', authRequired, async (req: Request, re
     res.json(updated);
   } catch (err) {
     logger.error('Question withdrawal failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Add/toggle emoji reaction
+router.put('/:id/questions/:qid/reaction', authRequired, async (req: Request, res: Response) => {
+  try {
+    const { id: channelId, qid } = req.params;
+    const userId = req.user!.userId;
+    const { emoji } = req.body;
+
+    if (!emoji || typeof emoji !== 'string') {
+      res.status(400).json({ error: 'emoji 不能为空' });
+      return;
+    }
+
+    const question = await prisma.question.findUnique({ where: { id: qid } });
+    if (!question || question.channelId !== channelId) {
+      res.status(400).json({ error: '问题不存在' });
+      return;
+    }
+
+    const member = await prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+    });
+    if (!member) {
+      res.status(403).json({ error: '你不是该频道的成员' });
+      return;
+    }
+
+    await prisma.questionReaction.upsert({
+      where: { questionId_userId: { questionId: qid, userId } },
+      update: { emoji },
+      create: { questionId: qid, userId, emoji },
+    });
+
+    const reactions = await prisma.questionReaction.findMany({
+      where: { questionId: qid },
+      include: { user: { select: { id: true, nickname: true, avatarSeed: true } } },
+    });
+
+    const io = getIO();
+    io.to(channelId).emit(SocketEvents.QUESTION_REACTION_UPDATED, {
+      channelId, questionId: qid, reactions,
+    });
+
+    res.json({ reactions });
+  } catch (err) {
+    logger.error('Reaction upsert failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// Remove emoji reaction
+router.delete('/:id/questions/:qid/reaction', authRequired, async (req: Request, res: Response) => {
+  try {
+    const { id: channelId, qid } = req.params;
+    const userId = req.user!.userId;
+
+    const question = await prisma.question.findUnique({ where: { id: qid } });
+    if (!question || question.channelId !== channelId) {
+      res.status(400).json({ error: '问题不存在' });
+      return;
+    }
+
+    const member = await prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+    });
+    if (!member) {
+      res.status(403).json({ error: '你不是该频道的成员' });
+      return;
+    }
+
+    await prisma.questionReaction.deleteMany({
+      where: { questionId: qid, userId },
+    });
+
+    const reactions = await prisma.questionReaction.findMany({
+      where: { questionId: qid },
+      include: { user: { select: { id: true, nickname: true, avatarSeed: true } } },
+    });
+
+    const io = getIO();
+    io.to(channelId).emit(SocketEvents.QUESTION_REACTION_UPDATED, {
+      channelId, questionId: qid, reactions,
+    });
+
+    res.json({ reactions });
+  } catch (err) {
+    logger.error('Reaction delete failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -918,6 +1025,24 @@ router.post('/:id/chat', authRequired, validate(chatSchema), async (req: Request
   }
 });
 
+// Update chat read watermark
+router.put('/:id/chat/read', authRequired, async (req: Request, res: Response) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user!.userId;
+
+    await prisma.channelMember.update({
+      where: { channelId_userId: { channelId, userId } },
+      data: { lastReadChatAt: new Date() },
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('Chat read update failed', { error: String(err) });
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // Get timeline
 router.get('/:id/timeline', authRequired, async (req: Request, res: Response) => {
   try {
@@ -1131,8 +1256,17 @@ router.get('/:id/clues', authRequired, async (req: Request, res: Response) => {
     }
 
     // Analysis is triggered only when a question is answered (not on GET)
-    const clueGraph = await getClueGraph(channelId);
-    res.json(clueGraph || { nodes: [], edges: [] });
+    const graph = await prisma.clueGraph.findUnique({ where: { channelId } });
+    if (!graph) {
+      res.json({ nodes: [], edges: [], lastError: null, lastErrorAt: null });
+      return;
+    }
+    res.json({
+      nodes: graph.nodes,
+      edges: graph.edges,
+      lastError: graph.lastError,
+      lastErrorAt: graph.lastErrorAt,
+    });
   } catch (err) {
     logger.error('Clue graph fetch failed', { error: String(err) });
     res.status(500).json({ error: '服务器错误' });

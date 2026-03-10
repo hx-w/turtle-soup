@@ -72,6 +72,7 @@ model User {
   timelineEvents  TimelineEvent[]
   aiHints         AiHint[]
   creationSession CreationSession?
+  questionReactions QuestionReaction[]
 }
 
 model InviteCode {
@@ -121,7 +122,8 @@ model ChannelMember {
   userId       String
   role         MemberRole @default(player)
   joinedAt     DateTime  @default(now())
-  becameHostAt DateTime?
+  becameHostAt    DateTime?
+  lastReadChatAt  DateTime?
   channel      Channel   @relation(fields: [channelId], references: [id])
   user         User      @relation(fields: [userId], references: [id])
 
@@ -145,6 +147,7 @@ model Question {
 
   isAiAnswered    Boolean   @default(false)
   aiReasoning     String?
+  reactions       QuestionReaction[]
 
   @@index([channelId, status])
 }
@@ -213,6 +216,8 @@ model ClueGraph {
   analyzedAt    DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  lastError     String?
+  lastErrorAt   DateTime?
 
   @@index([channelId])
 }
@@ -228,4 +233,18 @@ model CreationSession {
   updatedAt   DateTime @updatedAt
   
   @@index([userId])
+}
+
+model QuestionReaction {
+  id         String   @id @default(uuid())
+  questionId String
+  userId     String
+  emoji      String   @db.VarChar(8)
+  createdAt  DateTime @default(now())
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([questionId, userId])
+  @@index([questionId])
 }

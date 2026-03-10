@@ -7,7 +7,6 @@ export function useDiscussion(channelId: string | undefined) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const initialLoaded = useRef(false);
 
   const fetchMessages = useCallback(
@@ -67,13 +66,14 @@ export function useDiscussion(channelId: string | undefined) {
     });
   }, []);
 
-  const incrementUnread = useCallback(() => {
-    setUnreadCount((c) => c + 1);
-  }, []);
-
-  const resetUnread = useCallback(() => {
-    setUnreadCount(0);
-  }, []);
+  const markAsRead = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      await api.put(`/channels/${channelId}/chat/read`, {});
+    } catch {
+      // Non-critical
+    }
+  }, [channelId]);
 
   // Refresh latest messages (used on visibility restore after mobile screen-off)
   const refreshLatest = useCallback(async () => {
@@ -93,14 +93,12 @@ export function useDiscussion(channelId: string | undefined) {
     messages,
     hasMore,
     loading,
-    unreadCount,
     initialLoaded: initialLoaded.current,
     fetchMessages,
     loadMore,
     sendMessage,
     addMessage,
-    incrementUnread,
-    resetUnread,
+    markAsRead,
     refreshLatest,
   };
 }

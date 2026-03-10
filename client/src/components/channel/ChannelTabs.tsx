@@ -9,7 +9,7 @@ interface ChannelTabsProps {
   answeredCount: number;
   unreadCount: number;
   hintsCount: number;
-  aiHintEnabled?: boolean;
+  clueGraphError?: boolean;
 }
 
 interface TabDef {
@@ -24,18 +24,14 @@ export default function ChannelTabs({
   answeredCount,
   unreadCount,
   hintsCount,
-  aiHintEnabled = false,
+  clueGraphError = false,
 }: ChannelTabsProps) {
   const tabs: TabDef[] = [
     { key: 'qa', label: '提问', icon: HelpCircle },
     { key: 'discussion', label: '讨论', icon: MessageSquare },
   ];
 
-
-  // Clues board tab - shows visual clue graph with hints list integrated
-  if (aiHintEnabled) {
-    tabs.push({ key: 'clues', label: '线索', icon: Network });
-  }
+  tabs.push({ key: 'clues', label: '线索', icon: Network });
 
   return (
     <div className="flex-shrink-0 px-4 pb-2 pt-1">
@@ -74,6 +70,11 @@ export default function ChannelTabs({
                 <span className="text-[11px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md ml-0.5">
                   {hintsCount}
                 </span>
+              )}
+
+              {/* Error indicator for clues */}
+              {tab.key === 'clues' && clueGraphError && hintsCount === 0 && (
+                <span className="w-2 h-2 bg-orange-500 rounded-full ml-0.5" title="图谱生成遇到问题" />
               )}
             </button>
           );

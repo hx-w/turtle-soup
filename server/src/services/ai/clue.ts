@@ -55,19 +55,27 @@ function formatQuestionsForAnalysis(questions: Question[]): string {
     .join('\n\n');
 }
 
+function sanitizeJsonResponse(text: string): string {
+  let cleaned = text;
+  // 去除 markdown code fence
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '');
+  // 去除可能的前导/后缀文字（只保留 { ... } 部分）
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (match) {
+    cleaned = match[0];
+  }
+  // 修复尾逗号（在 ] 或 } 之前的逗号）
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+  return cleaned;
+}
+
 /**
  * Parse AI response to extract clue graph data
  */
 function parseAnalysisResult(text: string): RawAnalysisResult | null {
   try {
-    // Try to extract JSON from the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      logger.warn('No JSON found in AI response for clue analysis');
-      return null;
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as RawAnalysisResult;
+    const sanitized = sanitizeJsonResponse(text);
+    const parsed = JSON.parse(sanitized) as RawAnalysisResult;
 
     // Validate structure
     if (!Array.isArray(parsed.nodes)) {
@@ -103,6 +111,8 @@ function parseAnalysisResult(text: string): RawAnalysisResult | null {
 
 // In-flight analysis lock to prevent duplicate concurrent analyses
 const analyzingChannels = new Set<string>();
+
+const MAX_RETRIES = 3;
 
 /**
  * Generate clue graph from answered questions
@@ -153,59 +163,95 @@ export async function analyzeClueGraph(channelId: string): Promise<ClueGraphData
       questions: questionsText,
     });
 
-    // Call AI
-    const result = await generateText({
-      model,
-      system: '你是一个精确的数据分析助手，只输出JSON格式数据。',
-      prompt,
-      abortSignal: AbortSignal.timeout(getRequestTimeout()),
-    });
+    let lastError: string | null = null;
 
-    // Parse result
-    const analysisResult = parseAnalysisResult(result.text);
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+        }
 
-    if (!analysisResult) {
-      return { nodes: [], edges: [] };
+        // Call AI
+        const result = await generateText({
+          model,
+          system: '你是一个精确的数据分析助手，只输出JSON格式数据。不要使用markdown代码块包裹。',
+          prompt,
+          abortSignal: AbortSignal.timeout(getRequestTimeout()),
+        });
+
+        // Parse result
+        const analysisResult = parseAnalysisResult(result.text);
+
+        if (analysisResult && analysisResult.nodes.length > 0) {
+          // Save to database — clear error fields on success
+          await prisma.clueGraph.upsert({
+            where: { channelId },
+            create: {
+              channelId,
+              nodes: analysisResult.nodes as unknown as Prisma.InputJsonValue,
+              edges: analysisResult.edges as unknown as Prisma.InputJsonValue,
+              questionCount: relevantQuestions.length,
+              lastError: null,
+              lastErrorAt: null,
+            },
+            update: {
+              nodes: analysisResult.nodes as unknown as Prisma.InputJsonValue,
+              edges: analysisResult.edges as unknown as Prisma.InputJsonValue,
+              questionCount: relevantQuestions.length,
+              version: { increment: 1 },
+              lastError: null,
+              lastErrorAt: null,
+            },
+          });
+
+          logger.info('Clue graph analyzed and saved', {
+            channelId,
+            nodeCount: analysisResult.nodes.length,
+            edgeCount: analysisResult.edges.length,
+            attempt,
+          });
+
+          try {
+            const io = getIO();
+            io.to(channelId).emit('clue_graph:updated', {
+              channelId,
+              nodes: analysisResult.nodes,
+              edges: analysisResult.edges,
+            });
+            logger.info('Emitted clue_graph:updated event', { channelId });
+          } catch (socketError) {
+            logger.warn('Failed to emit clue_graph:updated event', { channelId, error: String(socketError) });
+          }
+
+          return analysisResult;
+        }
+
+        lastError = 'Parsed result empty or invalid';
+        logger.warn('Clue analysis attempt returned empty result', { channelId, attempt });
+      } catch (err) {
+        lastError = String(err);
+        logger.warn('Clue analysis attempt failed', { channelId, attempt, error: lastError });
+      }
     }
 
-    // Save to database
+    // All retries exhausted — persist error state
     await prisma.clueGraph.upsert({
       where: { channelId },
       create: {
         channelId,
-        nodes: analysisResult.nodes as unknown as Prisma.InputJsonValue,
-        edges: analysisResult.edges as unknown as Prisma.InputJsonValue,
+        nodes: [] as unknown as Prisma.InputJsonValue,
+        edges: [] as unknown as Prisma.InputJsonValue,
         questionCount: relevantQuestions.length,
+        lastError,
+        lastErrorAt: new Date(),
       },
       update: {
-        nodes: analysisResult.nodes as unknown as Prisma.InputJsonValue,
-        edges: analysisResult.edges as unknown as Prisma.InputJsonValue,
-        questionCount: relevantQuestions.length,
-        version: { increment: 1 },
+        lastError,
+        lastErrorAt: new Date(),
       },
     });
 
-    logger.info('Clue graph analyzed and saved', {
-      channelId,
-      nodeCount: analysisResult.nodes.length,
-      edgeCount: analysisResult.edges.length,
-    });
-
-    try {
-      const io = getIO();
-      io.to(channelId).emit('clue_graph:updated', {
-        channelId,
-        nodes: analysisResult.nodes,
-        edges: analysisResult.edges,
-      });
-      logger.info('Emitted clue_graph:updated event', { channelId });
-    } catch (socketError) {
-      logger.warn('Failed to emit clue_graph:updated event', { channelId, error: String(socketError) });
-    }
-
-    return analysisResult;
-  } catch (error) {
-    logger.error('Clue graph analysis failed', { channelId, error: String(error) });
+    logger.error('Clue graph analysis failed after all retries', { channelId, lastError });
     return null;
   } finally {
     analyzingChannels.delete(channelId);

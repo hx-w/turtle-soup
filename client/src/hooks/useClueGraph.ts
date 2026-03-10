@@ -19,6 +19,8 @@ export interface ClueGraphState {
   hintNodes: PositionedClueNode[];
   loading: boolean;
   error: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
 }
 
 // Layout constants
@@ -233,6 +235,8 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
     hintNodes: [],
     loading: false,
     error: null,
+    lastError: null,
+    lastErrorAt: null,
   });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -285,6 +289,11 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
     try {
       const data = await api.get<ClueGraphData>(`/channels/${channelId}/clues`);
       applyClueData(data);
+      setState((prev) => ({
+        ...prev,
+        lastError: data.lastError || null,
+        lastErrorAt: data.lastErrorAt || null,
+      }));
     } catch (err) {
       const apiError = err as Error;
       console.error('fetchClueGraph error:', apiError);
@@ -398,8 +407,12 @@ export function useClueGraph({ channelId, enabled = true }: UseClueGraphOptions)
     return calculateCanvasSize(allNodes);
   }, [state.nodes, state.hintNodes]);
 
+  const { lastError, lastErrorAt } = state;
+
   return {
     ...state,
+    lastError,
+    lastErrorAt,
     canvasSize,
     fetchClueGraph,
     updateNodePosition,

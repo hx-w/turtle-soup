@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, PieChart, Minus, Target, Loader2, Send } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Check, X, PieChart, Minus, Target, Loader2, Send, SmilePlus } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import AnswerStamp from './AnswerStamp';
 import AiBadge from './ai/AiBadge';
 import AiReasoningToggle from './ai/AiReasoningToggle';
 import AiCorrectDropdown from './ai/AiCorrectDropdown';
+import EmojiReactionPopover from './channel/EmojiReactionPopover';
 import type { Question } from '../types';
 
 interface QuestionBubbleProps {
@@ -14,6 +15,8 @@ interface QuestionBubbleProps {
   onWithdraw?: (questionId: string) => void;
   onAnswer?: (questionId: string, answer: 'yes' | 'no' | 'irrelevant' | 'partial', isKeyQuestion: boolean) => Promise<void>;
   onAiCorrect?: (qid: string, answer: string, isKey: boolean) => Promise<void>;
+  onReaction?: (questionId: string, emoji: string) => void;
+  onRemoveReaction?: (questionId: string) => void;
 }
 
 type AnswerType = 'yes' | 'no' | 'irrelevant' | 'partial';
@@ -59,11 +62,62 @@ export default function QuestionBubble({
   onWithdraw,
   onAnswer,
   onAiCorrect,
+  onReaction,
+  onRemoveReaction,
 }: QuestionBubbleProps) {
   const isOwn = currentUserId === question.asker.id;
   const isPending = question.status === 'pending';
   const isAnswered = question.status === 'answered';
   const avatarUrl = `https://api.dicebear.com/7.x/thumbs/svg?seed=${question.asker.avatarSeed}`;
+
+  // Emoji reaction state
+  const [showPicker, setShowPicker] = useState(false);
+  const [selectedBubbleEmoji, setSelectedBubbleEmoji] = useState<string | null>(null);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+  const bubbleRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [pickerAnchor, setPickerAnchor] = useState<React.RefObject<HTMLElement | null>>(addBtnRef);
+
+  const aggregatedReactions = useMemo(() => {
+    const map = new Map<string, number>();
+    (question.reactions || []).forEach((r) => {
+      map.set(r.emoji, (map.get(r.emoji) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([emoji, count]) => ({ emoji, count }));
+  }, [question.reactions]);
+
+  const myReaction = useMemo(
+    () => (question.reactions || []).find((r) => r.userId === currentUserId)?.emoji,
+    [question.reactions, currentUserId],
+  );
+
+  const emojiUsers = useMemo(
+    () => (question.reactions || []).map((r) => ({
+      emoji: r.emoji,
+      nickname: r.user.nickname,
+      avatarSeed: r.user.avatarSeed,
+    })),
+    [question.reactions],
+  );
+
+  const handleEmojiSelect = (emoji: string) => {
+    if (emoji === myReaction) {
+      onRemoveReaction?.(question.id);
+    } else {
+      onReaction?.(question.id, emoji);
+    }
+  };
+
+  const handleBubbleClick = (emoji: string) => {
+    setSelectedBubbleEmoji(emoji);
+    setPickerAnchor({ current: bubbleRefs.current[emoji] });
+    setShowPicker(true);
+  };
+
+  const handleAddClick = () => {
+    setSelectedBubbleEmoji(null);
+    setPickerAnchor(addBtnRef);
+    setShowPicker(true);
+  };
 
   // Answer state for host
   const [selectedAnswer, setSelectedAnswer] = useState<AnswerType | null>(null);
@@ -272,6 +326,50 @@ export default function QuestionBubble({
             )}
           </div>
         )}
+
+        {/* Emoji Reactions */}
+        {(aggregatedReactions.length > 0 || (onReaction && !isPending)) && (
+          <div className="flex items-center gap-1 mt-2 flex-wrap">
+            {aggregatedReactions.map(({ emoji, count }) => (
+              <button
+                key={emoji}
+                ref={(el) => { bubbleRefs.current[emoji] = el; }}
+                type="button"
+                onClick={() => handleBubbleClick(emoji)}
+                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs
+                  transition-colors cursor-pointer
+                  ${myReaction === emoji
+                    ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
+                    : 'bg-surface hover:bg-surface-hover text-text-secondary'
+                  }`}
+              >
+                <span className="text-sm">{emoji}</span>
+                <span>{count}</span>
+              </button>
+            ))}
+            {onReaction && (
+              <button
+                ref={addBtnRef}
+                type="button"
+                onClick={handleAddClick}
+                className="inline-flex items-center justify-center w-6 h-6 rounded-full
+                  bg-surface hover:bg-surface-hover text-text-muted cursor-pointer transition-colors"
+              >
+                <SmilePlus className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        <EmojiReactionPopover
+          anchorRef={pickerAnchor}
+          isOpen={showPicker}
+          onClose={() => setShowPicker(false)}
+          onSelect={handleEmojiSelect}
+          currentEmoji={myReaction}
+          emojiUsers={selectedBubbleEmoji ? emojiUsers : undefined}
+          selectedBubbleEmoji={selectedBubbleEmoji || undefined}
+        />
 
         <div className="mt-2 text-xs text-text-muted flex items-center justify-between">
           {isPending && !isOwn && !isHost && !showAnswerOptions && (

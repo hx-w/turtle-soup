@@ -8,7 +8,7 @@ import {
   emitRoleChanged,
   emitChannelEnded,
 } from '../lib/socket';
-import type { Channel, ChannelMember, Question, ChannelStats, AiHint, HintsResponse } from '../types';
+import type { Channel, ChannelMember, Question, QuestionReaction, ChannelStats, AiHint, HintsResponse } from '../types';
 
 interface LocalOnlineUser {
   id: string;
@@ -316,6 +316,12 @@ export function useChannelData(
     setOnlineUsers(users);
   }, []);
 
+  const updateQuestionReactions = useCallback((questionId: string, reactions: QuestionReaction[]) => {
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === questionId ? { ...q, reactions } : q)),
+    );
+  }, []);
+
   // AI methods
   const handleAiCorrect = useCallback(
     async (qid: string, answer: string, isKey: boolean) => {
@@ -466,6 +472,7 @@ export function useChannelData(
     handleEditSoup,
     // Socket callbacks
     handleSocketChannelUpdated,
+    updateQuestionReactions,
     addQuestion,
     markAnswered,
     removeQuestion,

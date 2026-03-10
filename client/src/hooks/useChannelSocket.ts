@@ -4,7 +4,7 @@ import {
   joinChannel as socketJoinChannel,
   leaveChannel as socketLeaveChannel,
 } from '../lib/socket';
-import type { Question, ChatMessage, AiHint } from '../types';
+import type { Question, ChatMessage, AiHint, QuestionReaction } from '../types';
 
 interface LocalOnlineUser {
   id: string;
@@ -33,6 +33,7 @@ interface UseChannelSocketCallbacks {
   onHintShared?: (data: { hint: AiHint; channelId: string }) => void;
   onProgressUpdated?: (data: { channelId: string; progress: number }) => void;
   onAiReviewReady?: (data: { channelId: string; review: string }) => void;
+  onReactionUpdated?: (data: { channelId: string; questionId: string; reactions: QuestionReaction[] }) => void;
   onVisibilityRestore?: () => void;
 }
 
@@ -136,6 +137,11 @@ export function useChannelSocket(
       callbacks.onProgressUpdated?.(data);
     }
 
+    function handleReactionUpdated(data: any) {
+      if (data.channelId && data.channelId !== channelId) return;
+      callbacks.onReactionUpdated?.(data);
+    }
+
     function handleAiReviewReady(data: any) {
       if (data.channelId && data.channelId !== channelId) return;
       callbacks.onAiReviewReady?.(data);
@@ -167,6 +173,7 @@ export function useChannelSocket(
     s.on('hint:shared', handleHintShared);
     s.on('progress:updated', handleProgressUpdated);
     s.on('ai:review_ready', handleAiReviewReady);
+    s.on('question:reaction_updated', handleReactionUpdated);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -185,6 +192,7 @@ export function useChannelSocket(
       s.off('hint:shared', handleHintShared);
       s.off('progress:updated', handleProgressUpdated);
       s.off('ai:review_ready', handleAiReviewReady);
+      s.off('question:reaction_updated', handleReactionUpdated);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, userId]);
